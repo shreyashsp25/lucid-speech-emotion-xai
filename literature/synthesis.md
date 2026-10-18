@@ -69,5 +69,4 @@ These are candidates only. Phase 2 must search for counter-evidence before we cl
 
 ## What remains before Phase 1 is complete
 - Each team member reads their assigned papers and checks these notes against the PDFs, correcting anything wrong.
-- Resolve the two **TO VERIFY** venues (papers 6 and 7).
 - Team agrees that this synthesis reflects the papers.

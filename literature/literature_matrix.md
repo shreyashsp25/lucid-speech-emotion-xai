@@ -1,7 +1,7 @@
 # Literature Matrix — Team Lucid
 
 Speech Emotion Recognition with Explainable ML · Phase 1
-"Not Reported" = the paper does not state it. "TO VERIFY" = check against the PDF's first page.
+"Not Reported" = the paper does not state it.
 Detailed notes per paper: `literature/notes/notes_paperNN.md`.
 
 ---
@@ -15,8 +15,8 @@ Detailed notes per paper: `literature/notes/notes_paperNN.md`.
 | 3 | GeMAPS / eGeMAPS | Eyben, Scherer, Schuller, Sundberg, André, Busso, Devillers, Epps, Laukka, Narayanan, Truong | 2016 | IEEE TAC 7(2) 190–202 | [Augsburg](https://opus.bibliothek.uni-augsburg.de/opus4/files/38554/0214.pdf) | Piriya |
 | 4 | wav2vec 2.0 embeddings for SER | Pepino, Riera, Ferrer | 2021 | Interspeech 2021 | [arXiv](https://arxiv.org/abs/2104.03502) | Piriya |
 | 5 | Explaining DL embeddings via acoustic features | Dixit, Low, Elbanna, Catania, Ghosh | 2024 | arXiv 2409.09511 | [arXiv](https://arxiv.org/abs/2409.09511) | Piriya |
-| 6 | SER reality check (IEMOCAP) | Antoniou, Katsamanis, Giannakopoulos, Narayanan | 2023 | arXiv 2304.00860 (venue TO VERIFY) | [arXiv](https://arxiv.org/pdf/2304.00860) | Praveen |
-| 7 | EMO-SUPERB | Wu, Chou, Chang, Goncalves, Du, Jang, Lee, Lee | 2024 | arXiv 2402.13018 (venue TO VERIFY) | [arXiv](https://arxiv.org/pdf/2402.13018) | Pranav |
+| 6 | SER reality check (IEMOCAP) | Antoniou, Katsamanis, Giannakopoulos, Narayanan | 2023 | ICASSP 2023 (arXiv 2304.00860) | [arXiv](https://arxiv.org/pdf/2304.00860) | Praveen |
+| 7 | EMO-SUPERB | Wu, Chou, Chang, Goncalves, Du, Jang, Lee, Lee | 2024 | arXiv 2402.13018 (preprint) | [arXiv](https://arxiv.org/pdf/2402.13018) | Pranav |
 | 8 | Cross-corpus training with SSL | Pastor, Ribas, Ortega, Miguel, Lleida | 2023 | Applied Sciences 13(16) 9062 | [MDPI](https://www.mdpi.com/2076-3417/13/16/9062) | Pranav |
 | 9 | XAI techniques for SER | Norval, Wang | 2025 | Inteligencia Artificial 28(76) 85–123 | [Iberamia](https://journal.iberamia.org/index.php/intartif/article/view/1809) | Praveen |
 | 10 | Explanation multiplicity in SHAP | Hwang, Lee, Rosenblatt, Whang, Stoyanovich | 2026 | arXiv 2601.12654 | [arXiv](https://arxiv.org/abs/2601.12654) | Praveen |
