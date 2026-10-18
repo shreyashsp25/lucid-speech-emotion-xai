@@ -13,13 +13,15 @@
 ## About the project
 We are building a research-driven Speech Emotion Recognition system. It classifies emotion from voice recordings and **explains** which acoustic properties drove each prediction. We follow a literature-first workflow, so the research gap and methodology are chosen from evidence before any code is written.
 
+**Research question:** When a speech emotion recognition model trained on one acted English corpus is applied to another, do its accuracy and its SHAP explanations hold up, and can explanation stability be used to choose features that transfer better?
+
 **Workflow:** Literature → Research gap → Methodology → Data → Features → Models → Explainability → Experiments → Simulation → Report/Viva
 
 ## Current status
 | Phase | Status |
 |---|---|
-| 1. Literature survey | ✅ Notes, matrix and synthesis complete (team review in progress) |
-| 2. Research gap & methodology | ⏳ Next |
+| 1. Literature survey | ✅ Notes, matrix and synthesis complete |
+| 2. Research gap & methodology | ✅ Direction approved — see [`report/02_research_gap_and_methodology.md`](report/02_research_gap_and_methodology.md) |
 | 3. Dataset investigation | ⬜ |
 | 4. Environment & repository | ✅ Set up |
 | 5. Audio preprocessing & features | ⬜ |

@@ -2,7 +2,7 @@
 
 Team Lucid · Speech Emotion Recognition with Explainable ML
 Builds on: `literature/literature_matrix.md`, `literature/synthesis.md`
-**Status: draft for team discussion. Nothing is final until the team confirms the chosen direction.**
+**Status: direction approved (see Section 7).**
 
 ---
 
@@ -161,7 +161,9 @@ Supervised classification · Logistic Regression · SVM · Decision-tree ensembl
 
 ---
 
-## 7. Decisions needed from the team
-1. **Approve the research question** (A + B + E with D as baseline), or pick a different direction from Section 2.
-2. **Gradient boosting library:** LightGBM or XGBoost. (Recommendation: LightGBM, which is faster on Mac.)
-3. **Label policy for CREMA-D:** intended labels with an agreement-subset check (recommended), or perceived labels.
+## 7. Decisions (agreed 18 Oct 2026)
+| Decision | Choice | Reason |
+|---|---|---|
+| Research direction | **A + B + E, with D as rigour baseline** | Keeps XAI central to the project title; answers one connected question; every outcome is reportable |
+| Gradient boosting library | **LightGBM** | Fast on Mac CPUs; exact TreeSHAP |
+| CREMA-D labels | **Intended labels**, plus a robustness re-run on high-agreement clips | Keeps all 91 speakers and the same label type as RAVDESS (also intended); the agreement subset shows whether label noise changes the conclusions |
