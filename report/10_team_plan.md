@@ -52,7 +52,8 @@ If the repository is private, add teammates (and later the faculty) as collabora
 | Phase reports 02–09 | done |
 | Notebooks 01–07 run top to bottom with outputs | done |
 | App runs on at least two laptops | **to do** (§3) |
-| Slides built from `10_initial_assessment.md` and `10_final_presentation.md` | **to do** |
+| Final presentation `Lucid_Final_Presentation.pptx` (17 slides) | done; initial-assessment deck optional |
+| All 25 reference PDFs collected in `Machine learning/papers/` (01–25) | done |
 | Backup demo `.wav` file on the desktop | **to do** |
 | Mock viva held (§2) | **to do** |
 | Repository shared with the faculty (collaborator or public after grading) | **to do** |
