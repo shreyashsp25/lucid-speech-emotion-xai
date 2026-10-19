@@ -1,0 +1,119 @@
+{
+  "oof_uar": {
+    "ravdess_logreg": 0.5538,
+    "ravdess_lgbm": 0.5391,
+    "cremad_logreg": 0.514,
+    "cremad_lgbm": 0.5372
+  },
+  "top10": {
+    "ravdess_logreg": [
+      "mfcc1_sma3_amean",
+      "F1frequency_sma3nz_amean",
+      "mfcc3_sma3_amean",
+      "hammarbergIndexV_sma3nz_stddevNorm",
+      "alphaRatioUV_sma3nz_amean",
+      "equivalentSoundLevel_dBp",
+      "HNRdBACF_sma3nz_amean",
+      "loudness_sma3_stddevNorm",
+      "mfcc2V_sma3nz_amean",
+      "mfcc4_sma3_amean"
+    ],
+    "ravdess_lgbm": [
+      "F0semitoneFrom27.5Hz_sma3nz_stddevNorm",
+      "mfcc1_sma3_stddevNorm",
+      "slopeV500-1500_sma3nz_amean",
+      "MeanUnvoicedSegmentLength",
+      "StddevUnvoicedSegmentLength",
+      "HNRdBACF_sma3nz_amean",
+      "HNRdBACF_sma3nz_stddevNorm",
+      "F0semitoneFrom27.5Hz_sma3nz_pctlrange0-2",
+      "jitterLocal_sma3nz_amean",
+      "spectralFluxUV_sma3nz_amean"
+    ],
+    "cremad_logreg": [
+      "equivalentSoundLevel_dBp",
+      "loudness_sma3_amean",
+      "F2amplitudeLogRelF0_sma3nz_amean",
+      "F2amplitudeLogRelF0_sma3nz_stddevNorm",
+      "loudness_sma3_meanRisingSlope",
+      "spectralFluxUV_sma3nz_amean",
+      "mfcc2_sma3_amean",
+      "mfcc2V_sma3nz_amean",
+      "spectralFlux_sma3_amean",
+      "F3amplitudeLogRelF0_sma3nz_stddevNorm"
+    ],
+    "cremad_lgbm": [
+      "spectralFluxUV_sma3nz_amean",
+      "loudness_sma3_meanRisingSlope",
+      "spectralFlux_sma3_amean",
+      "loudness_sma3_meanFallingSlope",
+      "spectralFluxV_sma3nz_amean",
+      "loudness_sma3_pctlrange0-2",
+      "loudness_sma3_amean",
+      "mfcc2_sma3_stddevNorm",
+      "F0semitoneFrom27.5Hz_sma3nz_percentile50.0",
+      "F0semitoneFrom27.5Hz_sma3nz_stddevNorm"
+    ]
+  },
+  "group_share": {
+    "RAVDESS \u00b7 logreg": {
+      "Energy": 0.1973000019788742,
+      "Frequency": 0.2791999876499176,
+      "Spectral": 0.46209999918937683,
+      "Temporal": 0.061500001698732376
+    },
+    "RAVDESS \u00b7 lgbm": {
+      "Energy": 0.19750000536441803,
+      "Frequency": 0.2635999917984009,
+      "Spectral": 0.4519999921321869,
+      "Temporal": 0.0868000015616417
+    },
+    "CREMA-D \u00b7 logreg": {
+      "Energy": 0.23469999432563782,
+      "Frequency": 0.18469999730587006,
+      "Spectral": 0.5335000157356262,
+      "Temporal": 0.047200001776218414
+    },
+    "CREMA-D \u00b7 lgbm": {
+      "Energy": 0.22579999268054962,
+      "Frequency": 0.24549999833106995,
+      "Spectral": 0.4625999927520752,
+      "Temporal": 0.06610000133514404
+    }
+  },
+  "shap_vs_permutation": {
+    "ravdess": {
+      "spearman": 0.791,
+      "top10_overlap": 5
+    },
+    "cremad": {
+      "spearman": 0.959,
+      "top10_overlap": 7
+    }
+  },
+  "no_pitch_shortcut_check": {
+    "n_no_pitch": 39,
+    "uar_with": 0.5141,
+    "uar_without": 0.514,
+    "sad_recall_with": 0.5776,
+    "sad_recall_without": 0.5816
+  },
+  "cross_corpus_preview": {
+    "logreg": {
+      "spearman": 0.538,
+      "top10_jaccard": 0.111,
+      "shared_top10": [
+        "equivalentSoundLevel_dBp",
+        "mfcc2V_sma3nz_amean"
+      ]
+    },
+    "lgbm": {
+      "spearman": 0.242,
+      "top10_jaccard": 0.111,
+      "shared_top10": [
+        "F0semitoneFrom27.5Hz_sma3nz_stddevNorm",
+        "spectralFluxUV_sma3nz_amean"
+      ]
+    }
+  }
+}

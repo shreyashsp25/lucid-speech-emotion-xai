@@ -2,7 +2,7 @@
 Models and leak-free evaluation (Phase 6).
 
 Leakage rules enforced here:
-  * scaling lives inside a Pipeline, so it is fitted on training folds only
+  * scaling (+ clipping to +/-5 SD) lives inside a Pipeline, fitted on training folds only
   * hyperparameters are tuned with an INNER speaker-grouped CV on training data
   * the WavLM layer is chosen with an INNER speaker-grouped CV on training data
   * the outer test fold is used once, for scoring
@@ -18,7 +18,7 @@ from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score
 from sklearn.model_selection import GridSearchCV, GroupKFold, StratifiedKFold, cross_val_predict
 from sklearn.neural_network import MLPClassifier
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from sklearn.svm import SVC
 
 from src.data import META_DIR, HARMONISED
@@ -26,6 +26,22 @@ from src.features import load_egemaps, load_wavlm_features
 
 CLASSES = HARMONISED  # fixed label order everywhere
 DEFAULT_LAYER = 6     # a-priori middle layer (P4, P7), used only where stated
+CLIP_Z = 5.0          # standardised values are clipped to +/-5 (see clip_z)
+
+
+def clip_z(Z):
+    """
+    Clip standardised features to [-5, 5].
+    Why: some eGeMAPS 'stddevNorm' features (std / mean) explode when the mean is
+    near zero, giving values up to 86 SD from the mean (Phase 7 finding). One such
+    value can dominate a linear model's output for that clip.
+    """
+    return np.clip(Z, -CLIP_Z, CLIP_Z)
+
+
+def preprocess_steps() -> list:
+    """Scaling + clipping, fitted inside each pipeline on training data only."""
+    return [("scale", StandardScaler()), ("clip", FunctionTransformer(clip_z))]
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +101,7 @@ def make_model(name: str, seed: int = 0) -> tuple[Pipeline, dict]:
         grid = {"clf__alpha": [1e-3, 1e-1]}
     else:
         raise ValueError(name)
-    return Pipeline([("scale", StandardScaler()), ("clf", clf)]), grid
+    return Pipeline(preprocess_steps() + [("clf", clf)]), grid
 
 
 # ---------------------------------------------------------------------------
@@ -102,8 +118,8 @@ def scores(y_true, y_pred) -> dict:
 # ---------------------------------------------------------------------------
 def select_layer(wavlm: np.ndarray, y, groups, n_inner: int = 3) -> tuple[int, list[float]]:
     """Pick the WavLM layer with the best inner-CV UAR (logistic regression, C=0.1)."""
-    pipe = Pipeline([("scale", StandardScaler()),
-                     ("clf", LogisticRegression(C=0.1, max_iter=2000, class_weight="balanced"))])
+    pipe = Pipeline(preprocess_steps() +
+                    [("clf", LogisticRegression(C=0.1, max_iter=2000, class_weight="balanced"))])
     cv = GroupKFold(n_splits=n_inner)
     uars = []
     for layer in range(wavlm.shape[1]):
@@ -150,8 +166,8 @@ def run_within_corpus(data: dict, feature_set: str, model_name: str, seed: int =
 def leakage_check(data: dict, feature_set: str, layer: int | None = None,
                   seed: int = 0) -> dict:
     X, y = features(data, feature_set, layer), data["y"]
-    pipe = Pipeline([("scale", StandardScaler()),
-                     ("clf", LogisticRegression(C=0.1, max_iter=3000, class_weight="balanced"))])
+    pipe = Pipeline(preprocess_steps() +
+                    [("clf", LogisticRegression(C=0.1, max_iter=3000, class_weight="balanced"))])
     random_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
     pred_random = cross_val_predict(pipe, X, y, cv=random_cv, n_jobs=-1)
     pred_speaker = np.empty_like(y)

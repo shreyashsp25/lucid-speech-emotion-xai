@@ -130,8 +130,10 @@ safetensors==0.8.0
 scikit-learn==1.9.1
 scipy==1.17.1
 Send2Trash==2.1.0
+shap==0.51.0
 shellingham==1.5.4
 six==1.17.0
+slicer==0.0.8
 soundfile==0.14.0
 soupsieve==3.0.3
 soxr==1.1.0
