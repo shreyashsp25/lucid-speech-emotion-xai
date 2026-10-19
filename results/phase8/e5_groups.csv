@@ -1,0 +1,15 @@
+target,features,group,n,in_domain_uar,cross_uar
+CREMA-D,egemaps,female,3512,0.528,0.366
+CREMA-D,egemaps,male,3930,0.502,0.347
+CREMA-D,egemaps,age 20-29,2774,0.53,0.352
+CREMA-D,egemaps,age 30-44,2624,0.506,0.349
+CREMA-D,egemaps,age 45+,2044,0.503,0.371
+CREMA-D,wavlm,female,3512,0.759,0.448
+CREMA-D,wavlm,male,3930,0.719,0.452
+CREMA-D,wavlm,age 20-29,2774,0.749,0.455
+CREMA-D,wavlm,age 30-44,2624,0.736,0.425
+CREMA-D,wavlm,age 45+,2044,0.726,0.475
+RAVDESS,egemaps,female,528,0.55,0.434
+RAVDESS,egemaps,male,528,0.557,0.431
+RAVDESS,wavlm,female,528,0.844,0.698
+RAVDESS,wavlm,male,528,0.778,0.658

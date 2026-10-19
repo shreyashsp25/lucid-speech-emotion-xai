@@ -1,0 +1,13 @@
+direction,norm,k,stable_minus_top_pts,ci95,significant
+RAVDESS→CREMA-D,source,10,-0.41,"[-1.7, +0.9]",False
+RAVDESS→CREMA-D,source,20,-1.21,"[-1.9, -0.5]",True
+RAVDESS→CREMA-D,source,30,-1.27,"[-2.0, -0.6]",True
+RAVDESS→CREMA-D,corpus,10,0.95,"[-0.2, +2.1]",False
+RAVDESS→CREMA-D,corpus,20,-1.32,"[-2.2, -0.5]",True
+RAVDESS→CREMA-D,corpus,30,-0.3,"[-1.1, +0.6]",False
+CREMA-D→RAVDESS,source,10,-3.78,"[-7.0, -0.7]",True
+CREMA-D→RAVDESS,source,20,1.41,"[-1.1, +3.8]",False
+CREMA-D→RAVDESS,source,30,-0.93,"[-3.9, +2.0]",False
+CREMA-D→RAVDESS,corpus,10,1.46,"[-1.8, +4.9]",False
+CREMA-D→RAVDESS,corpus,20,2.49,"[-0.3, +5.5]",False
+CREMA-D→RAVDESS,corpus,30,4.98,"[+2.3, +7.8]",True

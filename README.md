@@ -22,13 +22,13 @@ We are building a research-driven Speech Emotion Recognition system. It classifi
 |---|---|
 | 1. Literature survey | ✅ Notes, matrix and synthesis complete |
 | 2. Research gap & methodology | ✅ Direction approved — see [`report/02_research_gap_and_methodology.md`](report/02_research_gap_and_methodology.md) |
-| 3. Dataset investigation | ⬜ |
+| 3. Dataset investigation | ✅ [`report/03_dataset_investigation.md`](report/03_dataset_investigation.md) |
 | 4. Environment & repository | ✅ Set up |
-| 5. Audio preprocessing & features | ⬜ |
-| 6. Modelling | ⬜ |
-| 7. Explainable AI | ⬜ |
-| 8. Experiments & error analysis | ⬜ |
-| 9. Interactive simulation | ⬜ |
+| 5. Audio preprocessing & features | ✅ [`report/05_preprocessing_and_features.md`](report/05_preprocessing_and_features.md) |
+| 6. Modelling | ✅ [`report/06_modelling.md`](report/06_modelling.md) |
+| 7. Explainable AI | ✅ [`report/07_explainability.md`](report/07_explainability.md) |
+| 8. Experiments & error analysis | ✅ [`report/08_experiments.md`](report/08_experiments.md) |
+| 9. Interactive simulation | 🔄 Final model + `predict()` ready (`notebooks/07_final_model.ipynb`); app pending |
 | 10. Report & viva | ⬜ |
 
 ## Literature survey
@@ -42,7 +42,7 @@ We are building a research-driven Speech Emotion Recognition system. It classifi
 | RAVDESS (speech, audio-only) | 24 | 1,440 | CC BY-NC-SA 4.0 | https://zenodo.org/records/1188976 |
 | CREMA-D | 91 | 7,442 | Open Database License | https://github.com/CheyneyComputerScience/CREMA-D |
 
-Audio files are **not** committed. Download instructions will be added in Phase 3.
+Audio files are **not** committed. Download instructions: [`data/README.md`](data/README.md).
 
 ## Repository structure
 ```

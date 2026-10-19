@@ -1,0 +1,5 @@
+test corpus,model,n_speakers,UAR,macro_F1,Phase6_single_corpus_UAR
+ravdess,predictor (fusion),5,0.725,0.7307682299839873,0.75
+ravdess,explainer (eGeMAPS),5,0.4708333333333334,0.476425685286789,0.5125
+cremad,predictor (fusion),18,0.7234347442680775,0.7140416569278885,0.7153880070546738
+cremad,explainer (eGeMAPS),18,0.4893077601410935,0.47943958489229715,0.5054012345679012

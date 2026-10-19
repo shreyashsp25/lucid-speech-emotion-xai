@@ -1,0 +1,70 @@
+{
+  "heldout_check": [
+    {
+      "test corpus": "ravdess",
+      "model": "predictor (fusion)",
+      "n_speakers": 5,
+      "UAR": 0.725,
+      "macro_F1": 0.7308,
+      "Phase6_single_corpus_UAR": 0.75
+    },
+    {
+      "test corpus": "ravdess",
+      "model": "explainer (eGeMAPS)",
+      "n_speakers": 5,
+      "UAR": 0.4708,
+      "macro_F1": 0.4764,
+      "Phase6_single_corpus_UAR": 0.5125
+    },
+    {
+      "test corpus": "cremad",
+      "model": "predictor (fusion)",
+      "n_speakers": 18,
+      "UAR": 0.7234,
+      "macro_F1": 0.714,
+      "Phase6_single_corpus_UAR": 0.7154
+    },
+    {
+      "test corpus": "cremad",
+      "model": "explainer (eGeMAPS)",
+      "n_speakers": 18,
+      "UAR": 0.4893,
+      "macro_F1": 0.4794,
+      "Phase6_single_corpus_UAR": 0.5054
+    }
+  ],
+  "final_info": {
+    "trained_on": "RAVDESS + CREMA-D (all labelled clips)",
+    "n_clips": 8498,
+    "n_speakers": 115,
+    "predictor_params": {
+      "clf__C": 0.01
+    },
+    "explainer_params": {
+      "clf__C": 1.0
+    },
+    "layer_profile_inner_uar": [
+      0.5924,
+      0.6195,
+      0.6438,
+      0.6698,
+      0.6935,
+      0.7177,
+      0.7208,
+      0.7258,
+      0.715,
+      0.7069,
+      0.706,
+      0.697,
+      0.6921
+    ],
+    "wavlm_model": "microsoft/wavlm-base-plus",
+    "sample_rate": 16000,
+    "sklearn": "1.9.1",
+    "python": "3.11.17",
+    "date": "2026-10-19"
+  },
+  "demo_file": "03-01-04-01-01-01-03.wav",
+  "demo_prediction": "sad",
+  "demo_warnings": []
+}

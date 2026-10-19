@@ -1,0 +1,4 @@
+representation,median_resample,median_speaker,median_corpus,median_random,p_resample>speaker,p_speaker>corpus,p_corpus>random,H2_order_holds
+LogReg·eGeMAPS,0.78,0.631,0.495,0.004,7.134422373999788e-11,5.884951352820588e-12,1.385470349028372e-188,True
+LightGBM·eGeMAPS,0.76,0.441,0.197,0.004,1.5736655211428907e-12,5.979604729686785e-14,1.7994500499101675e-137,True
+LogReg·WavLM-L6,0.677,0.337,0.104,0.001,1.5736655211428907e-12,2.1869685244121226e-14,7.641131804245126e-178,True

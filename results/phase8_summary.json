@@ -1,0 +1,456 @@
+{
+  "E2_H1": [
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "source",
+      "egemaps_cross_uar": "30.1 [28.9, 31.2]",
+      "egemaps_rel_drop": "41.4%",
+      "wavlm_cross_uar": "38.7 [37.0, 40.6]",
+      "wavlm_rel_drop": "47.5%",
+      "fusion_cross_uar": "42.1 [40.2, 44.0]",
+      "fusion_rel_drop": "43.1%",
+      "wavlm_minus_egemaps_rel_drop": "+6.1 pts [+3.1, +9.4]",
+      "H1_supported": true
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "corpus",
+      "egemaps_cross_uar": "35.6 [34.3, 36.9]",
+      "egemaps_rel_drop": "30.7%",
+      "wavlm_cross_uar": "45.0 [43.3, 46.7]",
+      "wavlm_rel_drop": "39.0%",
+      "fusion_cross_uar": "48.6 [46.8, 50.6]",
+      "fusion_rel_drop": "34.3%",
+      "wavlm_minus_egemaps_rel_drop": "+8.3 pts [+5.1, +11.6]",
+      "H1_supported": true
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "source",
+      "egemaps_cross_uar": "30.0 [27.0, 33.2]",
+      "egemaps_rel_drop": "45.7%",
+      "wavlm_cross_uar": "58.8 [54.7, 62.9]",
+      "wavlm_rel_drop": "27.3%",
+      "fusion_cross_uar": "66.3 [62.8, 70.1]",
+      "fusion_rel_drop": "19.1%",
+      "wavlm_minus_egemaps_rel_drop": "-18.4 pts [-27.9, -8.1]",
+      "H1_supported": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "corpus",
+      "egemaps_cross_uar": "43.2 [41.2, 45.3]",
+      "egemaps_rel_drop": "21.9%",
+      "wavlm_cross_uar": "67.8 [65.1, 70.5]",
+      "wavlm_rel_drop": "16.2%",
+      "fusion_cross_uar": "68.3 [65.6, 70.9]",
+      "fusion_rel_drop": "16.7%",
+      "wavlm_minus_egemaps_rel_drop": "-5.7 pts [-12.4, +1.4]",
+      "H1_supported": false
+    }
+  ],
+  "E3_H2": [
+    {
+      "representation": "LogReg\u00b7eGeMAPS",
+      "median_resample": 0.78,
+      "median_speaker": 0.631,
+      "median_corpus": 0.495,
+      "median_random": 0.004,
+      "p_resample>speaker": 7.134422373999788e-11,
+      "p_speaker>corpus": 5.884951352820588e-12,
+      "p_corpus>random": 1.385470349028372e-188,
+      "H2_order_holds": true
+    },
+    {
+      "representation": "LightGBM\u00b7eGeMAPS",
+      "median_resample": 0.76,
+      "median_speaker": 0.441,
+      "median_corpus": 0.197,
+      "median_random": 0.004,
+      "p_resample>speaker": 1.5736655211428907e-12,
+      "p_speaker>corpus": 5.979604729686785e-14,
+      "p_corpus>random": 1.7994500499101675e-137,
+      "H2_order_holds": true
+    },
+    {
+      "representation": "LogReg\u00b7WavLM-L6",
+      "median_resample": 0.677,
+      "median_speaker": 0.337,
+      "median_corpus": 0.104,
+      "median_random": 0.001,
+      "p_resample>speaker": 1.5736655211428907e-12,
+      "p_speaker>corpus": 2.1869685244121226e-14,
+      "p_corpus>random": 7.641131804245126e-178,
+      "H2_order_holds": true
+    }
+  ],
+  "E3_group_shares": {
+    "CREMA-D": {
+      "Energy (per feature)": [
+        0.293,
+        0.025
+      ],
+      "Frequency (per feature)": [
+        0.21,
+        0.018
+      ],
+      "Spectral (per feature)": [
+        0.22,
+        0.013
+      ],
+      "Temporal (per feature)": [
+        0.277,
+        0.032
+      ]
+    },
+    "RAVDESS": {
+      "Energy (per feature)": [
+        0.269,
+        0.019
+      ],
+      "Frequency (per feature)": [
+        0.253,
+        0.011
+      ],
+      "Spectral (per feature)": [
+        0.217,
+        0.012
+      ],
+      "Temporal (per feature)": [
+        0.261,
+        0.019
+      ]
+    }
+  },
+  "E4_H3": [
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "source",
+      "k": 10,
+      "stable_minus_top_pts": -0.41,
+      "ci95": "[-1.7, +0.9]",
+      "significant": false
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "source",
+      "k": 20,
+      "stable_minus_top_pts": -1.21,
+      "ci95": "[-1.9, -0.5]",
+      "significant": true
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "source",
+      "k": 30,
+      "stable_minus_top_pts": -1.27,
+      "ci95": "[-2.0, -0.6]",
+      "significant": true
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "corpus",
+      "k": 10,
+      "stable_minus_top_pts": 0.95,
+      "ci95": "[-0.2, +2.1]",
+      "significant": false
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "corpus",
+      "k": 20,
+      "stable_minus_top_pts": -1.32,
+      "ci95": "[-2.2, -0.5]",
+      "significant": true
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "norm": "corpus",
+      "k": 30,
+      "stable_minus_top_pts": -0.3,
+      "ci95": "[-1.1, +0.6]",
+      "significant": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "source",
+      "k": 10,
+      "stable_minus_top_pts": -3.78,
+      "ci95": "[-7.0, -0.7]",
+      "significant": true
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "source",
+      "k": 20,
+      "stable_minus_top_pts": 1.41,
+      "ci95": "[-1.1, +3.8]",
+      "significant": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "source",
+      "k": 30,
+      "stable_minus_top_pts": -0.93,
+      "ci95": "[-3.9, +2.0]",
+      "significant": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "corpus",
+      "k": 10,
+      "stable_minus_top_pts": 1.46,
+      "ci95": "[-1.8, +4.9]",
+      "significant": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "corpus",
+      "k": 20,
+      "stable_minus_top_pts": 2.49,
+      "ci95": "[-0.3, +5.5]",
+      "significant": false
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "norm": "corpus",
+      "k": 30,
+      "stable_minus_top_pts": 4.98,
+      "ci95": "[+2.3, +7.8]",
+      "significant": true
+    }
+  ],
+  "E5_per_class": [
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "neutral",
+      "in_domain_recall": 0.865,
+      "cross_recall": 0.917,
+      "drop": -0.052
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "happy",
+      "in_domain_recall": 0.76,
+      "cross_recall": 0.438,
+      "drop": 0.323
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "sad",
+      "in_domain_recall": 0.745,
+      "cross_recall": 0.359,
+      "drop": 0.385
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "angry",
+      "in_domain_recall": 0.896,
+      "cross_recall": 0.818,
+      "drop": 0.078
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "fearful",
+      "in_domain_recall": 0.786,
+      "cross_recall": 0.688,
+      "drop": 0.099
+    },
+    {
+      "direction": "CREMA-D\u2192RAVDESS",
+      "emotion": "disgust",
+      "in_domain_recall": 0.88,
+      "cross_recall": 0.88,
+      "drop": 0.0
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "neutral",
+      "in_domain_recall": 0.864,
+      "cross_recall": 0.094,
+      "drop": 0.77
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "happy",
+      "in_domain_recall": 0.759,
+      "cross_recall": 0.55,
+      "drop": 0.209
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "sad",
+      "in_domain_recall": 0.669,
+      "cross_recall": 0.736,
+      "drop": -0.068
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "angry",
+      "in_domain_recall": 0.827,
+      "cross_recall": 0.64,
+      "drop": 0.186
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "fearful",
+      "in_domain_recall": 0.644,
+      "cross_recall": 0.507,
+      "drop": 0.137
+    },
+    {
+      "direction": "RAVDESS\u2192CREMA-D",
+      "emotion": "disgust",
+      "in_domain_recall": 0.684,
+      "cross_recall": 0.391,
+      "drop": 0.293
+    }
+  ],
+  "E5_groups": [
+    {
+      "target": "CREMA-D",
+      "features": "egemaps",
+      "group": "female",
+      "n": 3512,
+      "in_domain_uar": 0.528,
+      "cross_uar": 0.366
+    },
+    {
+      "target": "CREMA-D",
+      "features": "egemaps",
+      "group": "male",
+      "n": 3930,
+      "in_domain_uar": 0.502,
+      "cross_uar": 0.347
+    },
+    {
+      "target": "CREMA-D",
+      "features": "egemaps",
+      "group": "age 20-29",
+      "n": 2774,
+      "in_domain_uar": 0.53,
+      "cross_uar": 0.352
+    },
+    {
+      "target": "CREMA-D",
+      "features": "egemaps",
+      "group": "age 30-44",
+      "n": 2624,
+      "in_domain_uar": 0.506,
+      "cross_uar": 0.349
+    },
+    {
+      "target": "CREMA-D",
+      "features": "egemaps",
+      "group": "age 45+",
+      "n": 2044,
+      "in_domain_uar": 0.503,
+      "cross_uar": 0.371
+    },
+    {
+      "target": "CREMA-D",
+      "features": "wavlm",
+      "group": "female",
+      "n": 3512,
+      "in_domain_uar": 0.759,
+      "cross_uar": 0.448
+    },
+    {
+      "target": "CREMA-D",
+      "features": "wavlm",
+      "group": "male",
+      "n": 3930,
+      "in_domain_uar": 0.719,
+      "cross_uar": 0.452
+    },
+    {
+      "target": "CREMA-D",
+      "features": "wavlm",
+      "group": "age 20-29",
+      "n": 2774,
+      "in_domain_uar": 0.749,
+      "cross_uar": 0.455
+    },
+    {
+      "target": "CREMA-D",
+      "features": "wavlm",
+      "group": "age 30-44",
+      "n": 2624,
+      "in_domain_uar": 0.736,
+      "cross_uar": 0.425
+    },
+    {
+      "target": "CREMA-D",
+      "features": "wavlm",
+      "group": "age 45+",
+      "n": 2044,
+      "in_domain_uar": 0.726,
+      "cross_uar": 0.475
+    },
+    {
+      "target": "RAVDESS",
+      "features": "egemaps",
+      "group": "female",
+      "n": 528,
+      "in_domain_uar": 0.55,
+      "cross_uar": 0.434
+    },
+    {
+      "target": "RAVDESS",
+      "features": "egemaps",
+      "group": "male",
+      "n": 528,
+      "in_domain_uar": 0.557,
+      "cross_uar": 0.431
+    },
+    {
+      "target": "RAVDESS",
+      "features": "wavlm",
+      "group": "female",
+      "n": 528,
+      "in_domain_uar": 0.844,
+      "cross_uar": 0.698
+    },
+    {
+      "target": "RAVDESS",
+      "features": "wavlm",
+      "group": "male",
+      "n": 528,
+      "in_domain_uar": 0.778,
+      "cross_uar": 0.658
+    }
+  ],
+  "E5_label_quality": {
+    "table": [
+      {
+        "features": "egemaps",
+        "clips": "listeners agreed",
+        "n": 3099,
+        "in_domain_uar": 0.622,
+        "cross_uar (RAVDESS\u2192CREMA-D)": 0.447
+      },
+      {
+        "features": "egemaps",
+        "clips": "listeners disagreed",
+        "n": 4343,
+        "in_domain_uar": 0.445,
+        "cross_uar (RAVDESS\u2192CREMA-D)": 0.307
+      },
+      {
+        "features": "wavlm",
+        "clips": "listeners agreed",
+        "n": 3099,
+        "in_domain_uar": 0.843,
+        "cross_uar (RAVDESS\u2192CREMA-D)": 0.57
+      },
+      {
+        "features": "wavlm",
+        "clips": "listeners disagreed",
+        "n": 4343,
+        "in_domain_uar": 0.672,
+        "cross_uar (RAVDESS\u2192CREMA-D)": 0.385
+      }
+    ],
+    "human_vs_model_spearman": 0.6
+  }
+}
