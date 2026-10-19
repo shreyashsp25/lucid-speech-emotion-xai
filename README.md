@@ -29,7 +29,7 @@ We are building a research-driven Speech Emotion Recognition system. It classifi
 | 7. Explainable AI | ✅ [`report/07_explainability.md`](report/07_explainability.md) |
 | 8. Experiments & error analysis | ✅ [`report/08_experiments.md`](report/08_experiments.md) |
 | 9. Interactive simulation | ✅ Streamlit app — see [`report/09_simulation.md`](report/09_simulation.md) |
-| 10. Report & viva | ⬜ |
+| 10. Report & viva | 🔄 Drafted — [`report/10_final_report.md`](report/10_final_report.md), viva prep, assessment plans, team plan; team review pending |
 
 ## Literature survey
 - [`literature/literature_matrix.md`](literature/literature_matrix.md): comparison of 10 verified, open-access papers
