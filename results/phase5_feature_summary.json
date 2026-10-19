@@ -1,0 +1,58 @@
+{
+  "preprocessing": {
+    "target_sr": 16000,
+    "mono": true,
+    "trim_top_db": 30,
+    "amplitude_normalised": false
+  },
+  "duration_mean_s": {
+    "ravdess": {
+      "original mean (s)": 3.7,
+      "after trim mean (s)": 1.9
+    },
+    "cremad": {
+      "original mean (s)": 2.54,
+      "after trim mean (s)": 2.39
+    }
+  },
+  "egemaps": {
+    "ravdess": {
+      "shape": [
+        1440,
+        88
+      ],
+      "nan": 0
+    },
+    "cremad": {
+      "shape": [
+        7442,
+        88
+      ],
+      "nan": 0
+    }
+  },
+  "wavlm": {
+    "model": "microsoft/wavlm-base-plus",
+    "device": "mps",
+    "ravdess": [
+      1440,
+      13,
+      768
+    ],
+    "cremad": [
+      7442,
+      13,
+      768
+    ]
+  },
+  "pca_explained_variance": {
+    "eGeMAPS (88)": [
+      0.29,
+      0.075
+    ],
+    "WavLM layer 6 (768)": [
+      0.226,
+      0.067
+    ]
+  }
+}
