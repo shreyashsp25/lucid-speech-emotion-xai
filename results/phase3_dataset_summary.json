@@ -1,0 +1,98 @@
+{
+  "ravdess": {
+    "files": 1440,
+    "unreadable": 0,
+    "speakers": 24,
+    "sample_rates": {
+      "48000": 1440
+    },
+    "channels": {
+      "1": 1435,
+      "2": 5
+    },
+    "duration_s": {
+      "count": 1440.0,
+      "mean": 3.701,
+      "std": 0.337,
+      "min": 2.936,
+      "25%": 3.47,
+      "50%": 3.67,
+      "75%": 3.87,
+      "max": 5.272
+    },
+    "emotion_counts": {
+      "calm": 192,
+      "happy": 192,
+      "sad": 192,
+      "angry": 192,
+      "fearful": 192,
+      "disgust": 192,
+      "surprised": 192,
+      "neutral": 96
+    },
+    "harmonised_counts": {
+      "happy": 192,
+      "sad": 192,
+      "angry": 192,
+      "fearful": 192,
+      "disgust": 192,
+      "neutral": 96
+    },
+    "speaker_gender": {
+      "male": 12,
+      "female": 12
+    },
+    "no_speaker_leakage": true
+  },
+  "cremad": {
+    "files": 7442,
+    "unreadable": 0,
+    "speakers": 91,
+    "sample_rates": {
+      "16000": 7442
+    },
+    "channels": {
+      "1": 7442
+    },
+    "duration_s": {
+      "count": 7442.0,
+      "mean": 2.543,
+      "std": 0.506,
+      "min": 1.268,
+      "25%": 2.202,
+      "50%": 2.502,
+      "75%": 2.836,
+      "max": 5.005
+    },
+    "emotion_counts": {
+      "angry": 1271,
+      "disgust": 1271,
+      "fearful": 1271,
+      "happy": 1271,
+      "sad": 1271,
+      "neutral": 1087
+    },
+    "harmonised_counts": {
+      "angry": 1271,
+      "disgust": 1271,
+      "fearful": 1271,
+      "happy": 1271,
+      "sad": 1271,
+      "neutral": 1087
+    },
+    "speaker_gender": {
+      "male": 48,
+      "female": 43
+    },
+    "no_speaker_leakage": true,
+    "voice_agreement_rate": 0.4164,
+    "voice_agreement_by_label": {
+      "angry": 0.6058,
+      "disgust": 0.2699,
+      "fearful": 0.3202,
+      "happy": 0.2596,
+      "neutral": 0.9568,
+      "sad": 0.1644
+    }
+  }
+}
