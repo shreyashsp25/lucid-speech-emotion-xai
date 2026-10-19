@@ -46,8 +46,8 @@ If the repository is private, add teammates (and later the faculty) as collabora
 | Item | Status |
 |---|---|
 | Final report `report/10_final_report.md` | written; **team to read and correct** |
-| Check references [15]–[20] against the papers (full authors, exact titles) | **to do** |
-| Venue of Paper 6 (ICASSP 2023?) from its PDF | **to do** |
+| References verified (full authors, titles, venues; numbered 1–25) | done |
+| Venue of Paper 6 confirmed (ICASSP 2023) | done |
 | Try once more to access the Springer 2026 SHAP/permutation feature-selection article; if read, update report §6.1 | **to do** |
 | Phase reports 02–09 | done |
 | Notebooks 01–07 run top to bottom with outputs | done |

@@ -33,7 +33,7 @@ Within each corpus, the fusion model with Logistic Regression is best (UAR 82.2%
 
 Speech carries emotion through *how* something is said: loudness, pitch movement, voice quality and timing. Speech emotion recognition aims to infer the expressed emotion from these cues. Applications include call-centre analytics, human–robot interaction and assistive technology, but every one of them meets audio recorded under conditions the model never saw.
 
-Two developments shape current SER. First, **self-supervised speech models** such as wav2vec 2.0 and WavLM produce embeddings that, with a simple classifier on top, outperform hand-crafted features within a dataset [4, 5, 7, 8]. Second, **explainable AI (XAI)** methods such as SHAP [14] are increasingly used to show which acoustic properties a model relies on [5, 9]. Both trends are usually evaluated inside one corpus. This project studies what happens to both, accuracy and explanation, when the corpus changes.
+Two developments shape current SER. First, **self-supervised speech models** such as wav2vec 2.0 and WavLM produce embeddings that, with a simple classifier on top, outperform hand-crafted features within a dataset [4, 5, 7, 8]. Second, **explainable AI (XAI)** methods such as SHAP [12] are increasingly used to show which acoustic properties a model relies on [5, 9]. Both trends are usually evaluated inside one corpus. This project studies what happens to both, accuracy and explanation, when the corpus changes.
 
 ## 2. Problem statement
 
@@ -82,7 +82,7 @@ Ten papers were read in full by the team (detailed notes in `literature/notes/`,
 - *Models.* A frozen encoder plus a simple classifier is the accepted standard [7]; logistic regression [5] and SVM [3] remain common.
 - *Explainability.* SHAP is the most used method [5, 9], but stability of its rankings is not measured in the SER papers we read [10].
 - *Evaluation.* Speaker leakage and inconsistent protocols are recurring problems [6]; credible work uses speaker-independent splits [3, 4, 5, 7, 8].
-- *Generalisation.* Cross-corpus studies report accuracy only [8, 19, 20], not whether explanations change.
+- *Generalisation.* Cross-corpus studies report accuracy only [8, 17, 18], not whether explanations change.
 
 ## 6. Research gap and questions
 
@@ -91,11 +91,11 @@ Before claiming a gap, we searched for work that might already fill it (Phase 2,
 
 | Work | Overlap | Remaining gap |
 |---|---|---|
-| Kaloga & Kodrasi 2025 [15] | Counts features that recur across 6 corpora | No formal stability metric, no cross-corpus train/test, no RAVDESS/CREMA-D |
-| Kołodziej et al. 2026 [16] | Feature recurrence across LOSO folds | One Polish corpus; no cross-corpus test |
-| Nasr et al. 2025 [17] | Plausibility of saliency explanations, CREMA-D | Plausibility, not stability |
-| Phukan et al. 2025 [19], Ibrahim et al. 2024 [20] | Cross-corpus benchmarks incl. RAVDESS/CREMA-D | Accuracy only; no explainability |
-| Nfissi et al. 2024 [18] | SHAP-guided feature selection | One corpus, 2 speakers; transfer and stability not tested |
+| Kaloga & Kodrasi 2025 [13] | Counts features that recur across 6 corpora | No formal stability metric, no cross-corpus train/test, no RAVDESS/CREMA-D |
+| Kołodziej et al. 2026 [14] | Feature recurrence across LOSO folds | One Polish corpus; no cross-corpus test |
+| Nasr et al. 2025 [15] | Plausibility of saliency explanations, CREMA-D | Plausibility, not stability |
+| Phukan et al. 2025 [17], Ibrahim et al. 2024 [18] | Cross-corpus benchmarks incl. RAVDESS/CREMA-D | Accuracy only; no explainability |
+| Nfissi et al. 2024 [16] | SHAP-guided feature selection | One corpus, 2 speakers; transfer and stability not tested |
 | Springer 2026 article on SHAP/permutation-guided feature selection for SER | — | **Full text not accessible to us; we could not check it** |
 
 We found no study that formally measures SHAP stability across resamples, speaker groups **and** corpora for RAVDESS ↔ CREMA-D, or that tests whether explanation stability predicts transfer. We describe this as an **underexplored question**, not a first: our search is not exhaustive and one relevant article could not be read.
@@ -157,8 +157,8 @@ Identical for both corpora (`src/audio.py`):
 
 | Set | Dimension | Tool | Role |
 |---|---|---|---|
-| **eGeMAPS v02** [3] | 88 named functionals: pitch, loudness, jitter, shimmer, HNR, formants, spectral slope/balance, MFCC 1–4, temporal rates | openSMILE [21] | interpretable features; human-readable SHAP |
-| **WavLM base-plus** [13] | 13 layers × 768, frozen, mean-pooled over time | Hugging Face `microsoft/wavlm-base-plus` | strong pretrained representation |
+| **eGeMAPS v02** [3] | 88 named functionals: pitch, loudness, jitter, shimmer, HNR, formants, spectral slope/balance, MFCC 1–4, temporal rates | openSMILE [19] | interpretable features; human-readable SHAP |
+| **WavLM base-plus** [11] | 13 layers × 768, frozen, mean-pooled over time | Hugging Face `microsoft/wavlm-base-plus` | strong pretrained representation |
 | **Fusion** | 88 + 768 = 856 | concatenation | complementarity test |
 
 eGeMAPS features fall into four groups following [3, 5]: **Energy** (15), **Frequency** (24), **Spectral** (43), **Temporal** (6).
@@ -171,20 +171,20 @@ eGeMAPS features fall into four groups following [3, 5]: **Energy** (15), **Freq
 |---|---|---|
 | Logistic Regression (L2, balanced) | C ∈ {0.01, 0.1, 1} | linear baseline; exact SHAP |
 | SVM, RBF kernel (balanced) | C ∈ {1, 10} | standard in paralinguistics [3] |
-| LightGBM (250 trees, balanced) | min_child_samples ∈ {10, 30} | non-linear interactions; exact TreeSHAP |
+| LightGBM [23] (250 trees, balanced) | min_child_samples ∈ {10, 30} | non-linear interactions; exact TreeSHAP |
 | MLP (256 units, early stopping) | α ∈ {0.001, 0.1} | standard neural head on embeddings [4, 7] |
 
 **KNN was excluded by project rule.** It would also be a poor fit here: distance-based methods are sensitive to the corpus offsets shown in §10 and to the 768-dimensional embedding space, and they offer no global explanation.
 
-**Tuning.** For each outer fold, hyperparameters and the WavLM layer are chosen by 3-fold speaker-grouped CV on the training folds only (nested CV). The outer test fold is used once.
+**Tuning.** All models use scikit-learn [24]. For each outer fold, hyperparameters and the WavLM layer are chosen by 3-fold speaker-grouped CV on the training folds only (nested CV). The outer test fold is used once.
 
 ## 12. Explainability methods
 
 | Method | Use |
 |---|---|
 | **Exact linear SHAP** for LogReg: φ = w · (z − z̄_train) on standardised, clipped features | global and local explanations; verified identical to `shap.LinearExplainer` (difference 0.0, additivity error ≈ 10⁻¹⁴) |
-| **TreeSHAP** for LightGBM [14] | non-linear comparison |
-| **Permutation importance** [22] (10 repeats, drop in test UAR) | independent cross-check |
+| **TreeSHAP** for LightGBM [12] | non-linear comparison |
+| **Permutation importance** [20] (10 repeats, drop in test UAR) | independent cross-check |
 | **Out-of-fold explanation** | every clip explained by a model that never heard its speaker |
 | **Stability metrics**: Spearman, Kendall τ, top-k Jaccard, against a random-ranking null | H2 (following [10]) |
 | **Group shares** (Energy, Frequency, Spectral, Temporal), total and per feature | comparison with [5] |
@@ -203,9 +203,9 @@ SHAP describes what a **model** uses. It is association, not evidence that a voi
 | E5 | Per-class, gender, age and label-quality error analysis | discussion |
 | E6 | Precision/recall/F1, ROC-AUC, calibration, overfitting, learning curve | standard evaluation |
 
-**Normalisation variants in E2/E4.** *Source*: the scaler is fitted on the source corpus only (strict). *Corpus*: each corpus is standardised with its own mean and SD, an established unsupervised adaptation [23] that uses unlabelled target features, never target labels.
+**Normalisation variants in E2/E4.** *Source*: the scaler is fitted on the source corpus only (strict). *Corpus*: each corpus is standardised with its own mean and SD, an established unsupervised adaptation [21] that uses unlabelled target features, never target labels.
 
-**Metrics.** UAR (mean per-class recall; primary, robust to RAVDESS's half-size neutral class), macro-F1, accuracy, per-class recall, ROC-AUC (one-vs-rest), ECE [24].
+**Metrics.** UAR (mean per-class recall; primary, robust to RAVDESS's half-size neutral class), macro-F1, accuracy, per-class recall, ROC-AUC (one-vs-rest), ECE [22].
 
 **Statistics.** Cross-corpus 95% CIs from a **speaker-level bootstrap** (1,000 resamples of target speakers; clips of one speaker are not independent). Paired differences use the same resamples. H2 uses Mann–Whitney tests. With 5 folds, within-corpus fold-level tests cannot reach p < 0.05 (minimum Wilcoxon p = 0.0625), so we report consistency across folds instead.
 
@@ -405,7 +405,7 @@ A Streamlit application (`app/streamlit_app.py`, `report/09_simulation.md`) runs
 - **Input:** held-out dataset clips (speakers the demo model never heard), file upload, or microphone.
 - **Output:** predicted emotion, all class scores, and a trust panel (calibration in-domain; explicit out-of-domain warning for uploads; a typicality rank against the 8,498 training clips; disagreement between the fusion and eGeMAPS models).
 - **Explanation:** exact linear SHAP for any chosen emotion, a plain-language summary, net evidence per feature group, and the share of the fusion model's evidence that comes from named features vs WavLM.
-- **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour; 16 interpretable features with training percentiles.
+- **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]); 16 interpretable features with training percentiles.
 - **Robustness simulation:** re-runs the pipeline on quieter/louder, pitch-shifted and noisy copies.
 - **Results pages:** all Phase 6–9 results, interactive.
 
@@ -469,7 +469,7 @@ With speaker-independent evaluation, WavLM-based models recognise six acted emot
 
 [5] S. Dixit, D. M. Low, G. Elbanna, F. Catania and S. S. Ghosh, "Explaining Deep Learning Embeddings for Speech Emotion Recognition by Predicting Interpretable Acoustic Features," arXiv:2409.09511, 2024.
 
-[6] N. Antoniou, A. Katsamanis, T. Giannakopoulos and S. Narayanan, "Designing and Evaluating Speech Emotion Recognition Systems: A Reality Check Case Study with IEMOCAP," arXiv:2304.00860, 2023 (published at ICASSP 2023 according to our literature matrix; venue to be confirmed from the PDF).
+[6] N. Antoniou, A. Katsamanis, T. Giannakopoulos and S. Narayanan, "Designing and Evaluating Speech Emotion Recognition Systems: A Reality Check Case Study with IEMOCAP," *Proc. IEEE ICASSP*, 2023. arXiv:2304.00860.
 
 [7] H. Wu, H.-C. Chou, K.-W. Chang, L. Goncalves, J. Du, J.-S. R. Jang, C.-C. Lee and H.-Y. Lee, "EMO-SUPERB: An In-depth Look at Speech Emotion Recognition," arXiv:2402.13018, 2024.
 
@@ -479,37 +479,37 @@ With speaker-independent evaluation, WavLM-based models recognise six acted emot
 
 [10] H. Hwang, S. Lee, L. Rosenblatt, S. E. Whang and J. Stoyanovich, "Explanation Multiplicity in SHAP: Characterization and Assessment," arXiv:2601.12654, 2026.
 
-[13] S. Chen et al., "WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing," *IEEE J. Selected Topics in Signal Processing*, vol. 16, no. 6, pp. 1505–1518, 2022.
+[11] S. Chen et al., "WavLM: Large-Scale Self-Supervised Pre-Training for Full Stack Speech Processing," *IEEE J. Selected Topics in Signal Processing*, vol. 16, no. 6, pp. 1505–1518, 2022.
 
-[14] S. M. Lundberg and S.-I. Lee, "A Unified Approach to Interpreting Model Predictions," *Advances in Neural Information Processing Systems (NeurIPS)*, 2017.
+[12] S. M. Lundberg and S.-I. Lee, "A Unified Approach to Interpreting Model Predictions," *Advances in Neural Information Processing Systems (NeurIPS)*, 2017.
 
-[15] Y. Kaloga and I. Kodrasi, "Towards Interpretable Emotion Recognition: Identifying Key Features with Machine Learning," arXiv:2508.04230, 2025.
+[13] Y. Kaloga and I. Kodrasi, "Towards Interpretable Emotion Recognition: Identifying Key Features with Machine Learning," arXiv:2508.04230, 2025.
 
-[16] Kołodziej et al., "Emotion Recognition Using Acoustic Features and Deep Learning: A Speaker-Independent Study," *Signals*, vol. 7, no. 4, 2026.
+[14] M. Kołodziej, A. Majkowski and T. Rywik, "Emotion Recognition Using Acoustic Features and Deep Learning: A Speaker-Independent Study," *Signals*, vol. 7, no. 4, 69, 2026. doi:10.3390/signals7040069.
 
-[17] Nasr, Ren and Johnson, "Beyond Saliency: Grounding Explanations of Speech Emotion Recognition in Acoustic Cues," arXiv:2511.11691, 2025.
+[15] S. Nasr, Z. Ren and D. Johnson, "Beyond Saliency: Enhancing Explanation of Speech Emotion Recognition with Expert-Referenced Acoustic Cues," arXiv:2511.11691, 2025.
 
-[18] Nfissi et al., "Iterative Feature Boosting for Explainable Speech Emotion Recognition," arXiv:2405.20172, 2024.
+[16] A. Nfissi, W. Bouachir, N. Bouguila and B. Mishara, "Iterative Feature Boosting for Explainable Speech Emotion Recognition," *Proc. IEEE ICMLA*, 2023. doi:10.1109/ICMLA58977.2023.00081. arXiv:2405.20172.
 
-[19] Phukan et al., "Rethinking Cross-Corpus Speech Emotion Recognition Benchmarking," *Proc. APSIPA ASC*, 2025.
+[17] O. C. Phukan, M. M. Akhtar, Girish, S. R. Behera, P. Bhagath, P. B. Reddy and A. B. Buduru, "Rethinking Cross-Corpus Speech Emotion Recognition Benchmarking: Are Paralinguistic Pre-Trained Representations Sufficient?," *Proc. APSIPA ASC*, 2025. arXiv:2509.16182.
 
-[20] Ibrahim et al., "What Does it Take to Generalize SER Model Across Datasets?," arXiv:2406.09933, 2024.
+[18] A. Ibrahim, S. Shehata, A. Kulkarni, M. Mohamed and M. Abdul-Mageed, "What Does it Take to Generalize SER Model Across Datasets? A Comprehensive Benchmark," *Proc. Interspeech*, 2024. arXiv:2406.09933.
 
-[21] F. Eyben, M. Wöllmer and B. Schuller, "openSMILE: The Munich Versatile and Fast Open-Source Audio Feature Extractor," *Proc. ACM Multimedia*, 2010.
+[19] F. Eyben, M. Wöllmer and B. Schuller, "openSMILE: The Munich Versatile and Fast Open-Source Audio Feature Extractor," *Proc. ACM Multimedia*, 2010.
 
-[22] L. Breiman, "Random Forests," *Machine Learning*, vol. 45, pp. 5–32, 2001.
+[20] L. Breiman, "Random Forests," *Machine Learning*, vol. 45, pp. 5–32, 2001.
 
-[23] B. Schuller, B. Vlasenko, F. Eyben, M. Wöllmer, A. Stuhlsatz, A. Wendemuth and G. Rigoll, "Cross-Corpus Acoustic Emotion Recognition: Variances and Strategies," *IEEE Trans. Affective Computing*, vol. 1, no. 2, pp. 119–131, 2010.
+[21] B. Schuller, B. Vlasenko, F. Eyben, M. Wöllmer, A. Stuhlsatz, A. Wendemuth and G. Rigoll, "Cross-Corpus Acoustic Emotion Recognition: Variances and Strategies," *IEEE Trans. Affective Computing*, vol. 1, no. 2, pp. 119–131, 2010.
 
-[24] C. Guo, G. Pleiss, Y. Sun and K. Q. Weinberger, "On Calibration of Modern Neural Networks," *Proc. ICML*, 2017.
+[22] C. Guo, G. Pleiss, Y. Sun and K. Q. Weinberger, "On Calibration of Modern Neural Networks," *Proc. ICML*, 2017.
 
-[25] G. Ke et al., "LightGBM: A Highly Efficient Gradient Boosting Decision Tree," *Advances in Neural Information Processing Systems (NeurIPS)*, 2017.
+[23] G. Ke et al., "LightGBM: A Highly Efficient Gradient Boosting Decision Tree," *Advances in Neural Information Processing Systems (NeurIPS)*, 2017.
 
-[26] F. Pedregosa et al., "Scikit-learn: Machine Learning in Python," *Journal of Machine Learning Research*, vol. 12, pp. 2825–2830, 2011.
+[24] F. Pedregosa et al., "Scikit-learn: Machine Learning in Python," *Journal of Machine Learning Research*, vol. 12, pp. 2825–2830, 2011.
 
-[27] M. Mauch and S. Dixon, "pYIN: A Fundamental Frequency Estimator Using Probabilistic Threshold Distributions," *Proc. ICASSP*, 2014.
+[25] M. Mauch and S. Dixon, "pYIN: A Fundamental Frequency Estimator Using Probabilistic Threshold Distributions," *Proc. IEEE ICASSP*, 2014.
 
-> **Before submission:** check entries [15]–[20] against the papers themselves (full author lists, exact titles) and complete them; they are recorded here as noted in Phase 2. References [11]–[12] are intentionally unused (numbering kept stable with the literature matrix).
+References [1]–[10] were read in full by the team (Phase 1); [13]–[18] were found and checked in the Phase 2 research-gap search; [11], [12] and [19]–[25] are the models, tools and methods used.
 
 ---
 
