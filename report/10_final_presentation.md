@@ -2,29 +2,38 @@
 
 Team Lucid · Target: **15 minutes talk + 5 minutes live demo + questions**. Figures are in `results/figures/`.
 
-Marking criteria covered: working system (demo), research contribution (slides 3, 12), real results (6–10), explainability (7–9), professional simulation (demo), comparisons (11), analysis (6–11), report (`10_final_report.md`), presentation, live demo.
+Slides: [`Lucid_Final_Presentation.pptx`](Lucid_Final_Presentation.pptx) (22 slides, speaker notes on every slide). Each content slide shows its section and a progress bar.
+
+Marking criteria covered: working system (demo, slide 19), research contribution (slides 5–6, 21), real results (9–17), explainability (12–13, 15), professional simulation (demo), comparisons (18), analysis (9–17), report (`Lucid_Final_Report.docx`), presentation, live demo.
 
 ---
 
 ## Slides
 
-| # | Title | Show | Key message | Presenter |
+| # | Section | Title | Key message | Presenter |
 |---|---|---|---|---|
-| 1 | Title | project title, team | — | Pranav |
-| 2 | Problem and question | 3 problems; research question; H0–H3 | Do accuracy and explanations survive a corpus change? | Pranav |
-| 3 | What we did | pipeline diagram (report §18 / app About page) | Speaker-independent, nested CV, exact SHAP, 2 corpora, no KNN | Piriya |
-| 4 | Data | dataset table; `p3_emotion_counts.png` | 1,056 + 7,442 clips; 6 emotions; CREMA-D listeners agree on 41.6% | Pranav |
-| 5 | Leakage (H0) | E0 bar chart (app → Model performance) | Random splits inflate RAVDESS by up to 9.3 points | Pranav |
-| 6 | Within-corpus results | `p6_within_corpus_uar.png`; confusion matrix | Fusion LogReg 82.2% / 74.1% UAR; WavLM +22–26 over eGeMAPS in every fold; fearful → sad is the main error | Pranav |
-| 7 | Explainability | `p7_global_top15.png`; group shares | CREMA-D model uses loudness, RAVDESS model spectral shape; Energy most informative per feature; SHAP ≈ permutation (0.79 / 0.96) | Piriya |
-| 8 | XAI as debugging | before/after table (±170 → ≈10 log-odds) | SHAP exposed exploding ratio features that accuracy hid | Piriya |
-| 9 | Explanation stability (H2) | `p8_e3_stability.png` | 0.78 > 0.63 > 0.50 > 0.00; WavLM least stable; groups stable | Piriya |
-| 10 | Cross-corpus (H1) | `p8_e2_cross_corpus.png` | −20 to −35 points; H1 holds from RAVDESS, reverses from CREMA-D: training diversity matters | Praveen |
-| 11 | Stable-core selection (H3) + errors | E4 forest plot; neutral collapse (recall 0.09) | H3 inconclusive; neutral and sad break across corpora; human-hard = model-hard (ρ = 0.60) | Praveen |
-| 12 | Standard evaluation | ROC-AUC 0.97 / 0.94; ECE 0.025 / 0.021; overfitting; learning curve | Well calibrated in-domain; still improving with more speakers | Pranav |
-| 13 | Comparison with literature | report §15 table | Same embedding gap as P4; P5's ranking partly reproduced; P3's suggestion only one-way | Piriya |
-| 14 | Limitations and ethics | report §20–21 | Two acted English corpora; over-confident under shift; not for decisions about people | Praveen |
-| 15 | Conclusion | 3 bullet answer to the research question | Accuracy doesn't transfer well; explanations partly (best at group level); stability is a diagnostic | all |
+| 1 | — | Title | Do accuracy and explanations survive a change of corpus? | Pranav |
+| 2 | — | Roadmap of this talk | Five parts: basics, problem, method, results, demo & wrap-up | Pranav |
+| 3 | 01 The basics | The task: hear a short clip, name the emotion | 6 emotions, chance 16.7%; emotion changes loudness, pitch, voice quality | Pranav |
+| 4 | 01 The basics | Three ideas the rest of the talk relies on | Features (eGeMAPS vs WavLM), fair testing (speaker-independent, UAR), SHAP | Pranav |
+| 5 | 02 The problem | Three problems with how SER is usually evaluated | Leakage, unknown transfer, unchecked explanations → research question | Pranav |
+| 6 | 02 The problem | Four hypotheses, stated before the experiments | H0–H3 | Pranav |
+| 7 | 03 Our method | Two acted English corpora, six shared emotions | 1,056 + 7,442 clips; CREMA-D listeners agree on 41.6% | Pranav |
+| 8 | 03 Our method | Pipeline: leak-free from audio to explanation | Speaker-independent, nested CV, exact SHAP, no KNN | Piriya |
+| 9 | 04 What we found | Results at a glance | Two supported, one direction-dependent, one inconclusive | Praveen |
+| 10 | 04 What we found | H0: random splits inflate RAVDESS by up to 9 points | +9.3 / +7.8 on RAVDESS vs +1.5 / +1.7 on CREMA-D | Pranav |
+| 11 | 04 What we found | Within a corpus, WavLM beats eGeMAPS by 22–26 points | Fusion LogReg 82.2% / 74.1% UAR; WavLM ahead in 5/5 folds | Pranav |
+| 12 | 04 What we found | What the models listen to differs by corpus | CREMA-D = loudness, RAVDESS = spectral shape; Energy best per feature; SHAP ≈ permutation | Piriya |
+| 13 | 04 What we found | SHAP found a bug that accuracy had hidden | ±170 → ≈10 log-odds after clipping; UAR barely changed | Piriya |
+| 14 | 04 What we found | H1 depends on direction | −20 to −35 points; +6.1 from RAVDESS, −18.4 from CREMA-D; per-corpus norm +2 to +13 | Praveen |
+| 15 | 04 What we found | H2 supported: explanations are only partly stable | 0.78 > 0.63 > 0.50 > 0.00; WavLM least stable; groups stable | Piriya |
+| 16 | 04 What we found | H3 inconclusive; errors follow acting style and labels | 1 gain / 4 losses / 7 null; neutral recall 0.09; human-hard = model-hard | Praveen |
+| 17 | 04 What we found | Standard checks | ROC-AUC 0.97 / 0.94; ECE 0.025 / 0.021; learning curve still rising | Pranav |
+| 18 | 04 What we found | How our findings compare with published work | Same embedding gap as P4; P5 partly reproduced; P3 only one way | Piriya |
+| 19 | 05 Demo & wrap-up | Live demo | Real model, explanation, robustness test, trust panel | Praveen |
+| 20 | 05 Demo & wrap-up | Limitations and ethics | Two acted corpora; not for decisions about people | Praveen |
+| 21 | 05 Demo & wrap-up | Answer to the research question | Accuracy doesn't travel; explanations partly; stability is a diagnostic; XAI earned its place | all |
+| 22 | 05 Demo & wrap-up | Thank you. Questions? | Future work | all |
 
 ---
 

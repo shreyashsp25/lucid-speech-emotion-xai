@@ -52,7 +52,8 @@ If the repository is private, add teammates (and later the faculty) as collabora
 | Phase reports 02–09 | done |
 | Notebooks 01–07 run top to bottom with outputs | done |
 | App runs on at least two laptops | **to do** (§3) |
-| Final presentation `Lucid_Final_Presentation.pptx` (17 slides) | done; initial-assessment deck optional |
+| Final presentation `Lucid_Final_Presentation.pptx` (22 slides, speaker notes) | done; **rehearse once with timing**; initial-assessment deck optional |
+| Learning guide `report/Lucid_Learning_Guide.docx` (whole project from the basics) | done; every member reads it |
 | All 25 reference PDFs collected in `Machine learning/papers/` (01–25) | done |
 | Backup demo `.wav` file on the desktop | **to do** |
 | Mock viva held (§2) | **to do** |

@@ -23,8 +23,8 @@ Team Lucid · Set up during Phase 1 and extended as each phase needed new tools.
 | 1 | `jupyter`, `ipykernel`, `pandas` | Notebooks, tables |
 | 3 | `soundfile`, `scikit-learn`, `matplotlib` | Read audio headers, grouped CV folds, plots |
 | 5 | `librosa`, `opensmile`, `torch`, `transformers`, `tqdm` | Resampling/trimming, eGeMAPS, WavLM embeddings, progress bars |
-| 6–7 (planned) | `lightgbm`, `shap` | Gradient boosting (decision recorded in Phase 2), explanations |
-| 9 (planned) | `streamlit` or `gradio`, `plotly` | Interactive demo |
+| 6–7 | `lightgbm`, `shap` | Gradient boosting (decision recorded in Phase 2), explanations |
+| 9 | `streamlit`, `plotly` | Interactive demo |
 
 Exact versions are pinned in `requirements.txt` (`pip freeze`).
 
@@ -33,11 +33,13 @@ Exact versions are pinned in `requirements.txt` (`pip freeze`).
 literature/   notes on 10 papers, matrix, synthesis
 report/       phase write-ups (this file is 04)
 notebooks/    01_dataset_investigation, 02_feature_extraction, ...
-src/          data.py (metadata, folds), audio.py (preprocessing), features.py (eGeMAPS, WavLM)
+src/          data.py (metadata, folds), audio.py (preprocessing), features.py (eGeMAPS, WavLM),
+              models.py, evaluation.py, explain.py, experiments.py, predict.py, app_utils.py, app_assets.py
 data/         README.md (download steps), metadata/ (labels + folds, committed)
               raw/ and processed/ (audio and features, git-ignored)
-results/      summaries (.json) and figures (.png)
-app/          demo (Phase 9)
+results/      summaries (.json), per-phase tables (phase6–9/) and figures (.png)
+models/       trained models (git-ignored)
+app/          Streamlit demo (Phase 9); settings in .streamlit/config.toml
 ```
 Rule: **notebooks explore, `src/` holds reusable code.** Anything used by more than one notebook moves into `src/`.
 
@@ -45,7 +47,7 @@ Rule: **notebooks explore, `src/` holds reusable code.** Anything used by more t
 `.venv/`, audio files (`*.wav`, `*.mp3`, `*.zip`), `data/raw/`, `data/processed/`, paper PDFs, trained model files, `.env` and other secrets. Dataset licences (RAVDESS CC BY-NC-SA 4.0, CREMA-D ODbL) are respected by sharing download instructions instead of audio.
 
 ## 5. Reproducibility practices
-- Fixed random seeds (`seed=42` for folds; multiple listed seeds for experiments).
+- Fixed random seeds (`seed=42` for the speaker folds; `seed=0` for models, bootstraps and resampling), so every run reproduces the same numbers.
 - Speaker folds saved in `data/metadata/*.csv`, so every experiment uses identical splits.
 - Feature files are regenerated from code; already-extracted files are skipped.
 - Commit messages follow a type prefix: `docs:`, `feat:`, `fix:`, `chore:`.
