@@ -28,7 +28,7 @@ We are building a research-driven Speech Emotion Recognition system. It classifi
 | 6. Modelling | ✅ [`report/06_modelling.md`](report/06_modelling.md) |
 | 7. Explainable AI | ✅ [`report/07_explainability.md`](report/07_explainability.md) |
 | 8. Experiments & error analysis | ✅ [`report/08_experiments.md`](report/08_experiments.md) |
-| 9. Interactive simulation | 🔄 Final model + `predict()` ready (`notebooks/07_final_model.ipynb`); app pending |
+| 9. Interactive simulation | ✅ Streamlit app — see [`report/09_simulation.md`](report/09_simulation.md) |
 | 10. Report & viva | ⬜ |
 
 ## Literature survey
@@ -69,3 +69,13 @@ pip install -r requirements.txt
 - Speaker-independent evaluation (no speaker in both training and test data)
 - No fabricated results, citations or novelty claims
 - Explanations are evaluated, not just plotted
+
+## Run the demo app
+
+```bash
+source .venv/bin/activate
+pip install streamlit==1.66.0 plotly==7.1.0     # once
+python -m src.app_assets                         # once: held-out demo model (~3–5 min)
+streamlit run app/streamlit_app.py
+```
+Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).

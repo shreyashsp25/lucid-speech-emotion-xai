@@ -1,0 +1,16 @@
+[theme]
+base = "light"
+primaryColor = "#2A78D6"
+font = "sans serif"
+
+[server]
+# Streamlit's file watcher scans every imported module; on transformers it tries to load
+# optional vision models (needs torchvision) and prints a long error. Not needed for the demo.
+fileWatcherType = "none"
+maxUploadSize = 20
+
+[browser]
+gatherUsageStats = false
+
+[client]
+toolbarMode = "viewer"

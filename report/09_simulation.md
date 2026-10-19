@@ -1,0 +1,65 @@
+# Phase 9 — Interactive simulation (research demo app)
+
+Team Lucid · `app/streamlit_app.py` (Streamlit + Plotly) · helpers in `src/app_utils.py`, `src/app_assets.py`, `src/predict.py`.
+
+## 1. How to run
+
+```bash
+source .venv/bin/activate
+pip install streamlit==1.66.0 plotly==7.1.0     # once
+python -m src.app_assets                         # once, ~3–5 min: builds the held-out demo model
+streamlit run app/streamlit_app.py               # opens http://localhost:8501
+```
+
+Needs `models/final_models.joblib` (from `notebooks/07_final_model.ipynb`), the cached features in `data/processed/` and the audio in `data/raw/` (for dataset examples). The first analysis takes about 20 s while openSMILE and WavLM load; after that each clip takes a few seconds.
+
+## 2. What the app contains
+
+| Page | Content | Source |
+|---|---|---|
+| **Analyse a recording** | Input: dataset example, file upload (WAV/FLAC/OGG/MP3) or microphone. Audio playback; prediction card; class-score chart; trust panel; four tabs (below) | live, real models |
+| · Explanation | Exact linear SHAP of the eGeMAPS model for any chosen emotion ("why / why not"); plain-language summary; net evidence per feature group; share of the fusion model's evidence from eGeMAPS vs WavLM | live |
+| · Signal | Waveform + energy, STFT spectrogram, 64-band Mel-spectrogram, pitch contour (pYIN); duration, median pitch, pitch range, voiced share | live |
+| · Voice features | 16 interpretable eGeMAPS features with value, training median and percentile among the 8,498 training clips; all 88 on request | live |
+| · Robustness simulation | Re-runs the whole pipeline on 6 modified copies (−12 / +6 dB, ±2 semitones, noise at 20 / 10 dB SNR) and shows the scores as a heat map | live |
+| **How the model decides** | Global SHAP top-15 per corpus and model; group shares (total and per feature); SHAP vs permutation agreement; RAVDESS-vs-CREMA-D importance scatter; per-emotion drivers; no-pitch shortcut check | Phase 7 results |
+| **Model performance** | All 12 model × feature results with fold SD; leakage experiment; interactive confusion matrices (out-of-fold); ROC-AUC, calibration, overfitting, learning curve; final-recipe held-out check | Phases 6, 8 (E6), 9 |
+| **Cross-corpus & errors** | Cross-corpus UAR with bootstrap CIs and in-domain reference; H1 table; explanation stability (H2) box plots; stable-core selection (H3) forest plot; per-class drops, gender/age, label quality | Phase 8 |
+| **About & limitations** | Pipeline diagram, design choices, limitations, ethics | — |
+
+Every chart is drawn from the trained models or the saved result files; nothing is hard-coded or simulated.
+
+## 3. Design decisions for honest predictions
+
+1. **Real pipeline, verified.** The app calls the same `load_audio` → openSMILE → WavLM code as training. For a held-out RAVDESS clip, the features computed live in the app equal the stored training features (largest difference 0.00005, float rounding).
+2. **Honest dataset demo.** The final model has heard every corpus clip, so playing one would overstate accuracy. `src/app_assets.py` trains the *same recipe* with all fold-0 speakers held out (5 RAVDESS + 18 CREMA-D speakers). Dataset examples come only from those speakers and use that model, so the true label is known **and** the speaker is new. On these speakers the recipe scored 72.5% (RAVDESS) and 72.3% (CREMA-D) UAR (Phase 9 notebook).
+3. **"Model score", not "confidence".** Scores are shown with a strength label (low < 40%, moderate < 70%, high) and a trust panel:
+   - dataset clips: in-domain calibration is good (ECE 0.025 / 0.021, Phase 8 E6);
+   - uploads and microphone: always warned that this is outside the training data, where cross-corpus UAR fell to 39–68% (Phase 8 E2) and scores are over-confident.
+4. **Typicality check instead of a fixed threshold.** The first version warned when more than 10 of 88 features fell outside the 1–99% training range. Tested on the training clips themselves, that rule fired on **8.4% of RAVDESS clips**, too often to be useful. The app now ranks the clip against all training clips and warns only when it is more atypical than 95% of them.
+5. **Two models, disagreement shown.** The prediction comes from the fusion model; the explanation from the interpretable eGeMAPS model. When the two disagree, the app says so rather than hiding it.
+6. **Explanation caveats on screen.** Contributions are relative to the average training clip; correlated features (loudness and sound level) can get opposite signs; group-level evidence is more stable than single features (Phase 8, E3); SHAP shows association, not cause.
+
+## 4. Robustness simulation: why it is scientifically useful
+
+Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recording level also depends on the microphone and distance, not only on emotion. The simulation lets anyone check this live: if a copy 12 dB quieter flips the prediction to *sad*, the model is using recording level. Pitch shifts test reliance on speaker voice range (male vs female), and added noise tests recording quality. These are the same failure modes behind the cross-corpus drop in Phase 8.
+
+## 5. Testing done
+
+- All five pages were rendered headless in a test copy of the project with the real Phase 6–9 result files and the real saved model; no errors on any page, tab or input mode (dataset example, random clip, file upload, robustness run).
+- The test environment could not download WavLM weights, so it used a random stand-in for WavLM there; predictions shown in that test are therefore not meaningful. On the Mac the app uses the real `microsoft/wavlm-base-plus`.
+- Pitch display: background hiss in the silent lead-in of some RAVDESS clips was being tracked as a flat 65 Hz "pitch"; frames pinned at the pitch-search floor are now dropped.
+
+## 6. Live-demo plan (for the final assessment)
+
+1. *Dataset example* → CREMA-D → angry → show correct prediction, then **Explanation** (loudness rising slope, sound level).
+2. Same page → **Robustness simulation** → show what changes with −12 dB.
+3. *Record with microphone* → one sentence, happy then sad → point to the out-of-domain warning and the typicality check.
+4. **Cross-corpus & errors** → H1 chart and neutral collapse (recall 0.09).
+5. **Model performance** → leakage chart (why speaker-independent splits matter).
+
+## 7. Limitations
+
+- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen.
+- The explanation is for the eGeMAPS model; the fusion model's WavLM part (most of its evidence) has no human-readable names, which the app shows explicitly as the eGeMAPS vs WavLM evidence share.
+- Runs locally only (needs the trained model, features and audio). It is a research demo, not a product.

@@ -54,11 +54,14 @@ def train_final(corpora: dict, seed: int = 0) -> dict:
     predictor, p_params = fit_tuned("logreg", X_fusion, d["y"], d["groups"], seed)
     explainer, e_params = fit_tuned("logreg", d["egemaps"], d["y"], d["groups"], seed)
     z_train = explainer[:-1].transform(d["egemaps"])
+    lo, hi = np.percentile(d["egemaps"], [1, 99], axis=0)
+    n_out = ((d["egemaps"] < lo) | (d["egemaps"] > hi)).sum(axis=1)   # per training clip
     return {
         "predictor": predictor, "explainer": explainer, "layer": int(layer),
         "classes": CLASSES, "egemaps_names": d["egemaps_names"],
         "explainer_train_mean_z": z_train.mean(axis=0),          # SHAP reference point
-        "egemaps_train_quantiles": np.percentile(d["egemaps"], [1, 99], axis=0),
+        "egemaps_train_quantiles": np.stack([lo, hi]),
+        "ood_threshold": float(np.percentile(n_out, 95)),        # 95% of training clips have fewer
         "info": {"trained_on": "RAVDESS + CREMA-D (all labelled clips)",
                  "n_clips": int(len(d["y"])), "n_speakers": int(len(np.unique(d["groups"]))),
                  "predictor_params": p_params, "explainer_params": e_params,
@@ -72,7 +75,7 @@ def train_final(corpora: dict, seed: int = 0) -> dict:
 def save_final(bundle: dict, path: Path = BUNDLE_PATH) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(bundle, path)
-    (path.parent / "final_models_info.json").write_text(json.dumps(bundle["info"], indent=2, default=str))
+    (path.parent / f"{path.stem}_info.json").write_text(json.dumps(bundle["info"], indent=2, default=str))
     return path
 
 
@@ -141,9 +144,10 @@ def predict_features(egemaps: np.ndarray, wavlm: np.ndarray, bundle: dict, top: 
     warnings = []
     lo, hi = bundle["egemaps_train_quantiles"]
     outside = int(((egemaps < lo) | (egemaps > hi)).sum())
-    if outside > 10:
-        warnings.append(f"{outside} of 88 voice features are outside the range seen in training "
-                        "(different microphone/recording conditions?) — treat the result with caution.")
+    if outside > bundle.get("ood_threshold", 10):
+        warnings.append(f"Unusual recording: {outside} of 88 voice features are outside the range seen in "
+                        "training (more than 95% of training clips). Different microphone or recording "
+                        "conditions? Treat the result with caution.")
     if np.abs(z).max() >= CLIP_Z:
         warnings.append("Some feature values were extreme and were clipped.")
     if proba.max() < 0.4:

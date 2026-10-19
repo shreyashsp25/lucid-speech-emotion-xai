@@ -16,3 +16,7 @@ models/*.pt
 # trained models (regenerate with notebooks/07_final_model.ipynb)
 models/
 *.joblib
+
+# local assistant/tool folders
+.claude/
+.agents/
