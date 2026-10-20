@@ -30,7 +30,7 @@ Marking criteria covered: working system (demo, slide 19), research contribution
 | 16 | 04 What we found | H3 inconclusive; errors follow acting style and labels | 1 gain / 4 losses / 7 null; neutral recall 0.09; human-hard = model-hard | Praveen |
 | 17 | 04 What we found | Standard checks | ROC-AUC 0.97 / 0.94; ECE 0.025 / 0.021; learning curve still rising | Pranav |
 | 18 | 04 What we found | How our findings compare with published work | Same embedding gap as P4; P5 partly reproduced; P3 only one way | Piriya |
-| 19 | 05 Demo & wrap-up | Live demo | Real model, explanation, robustness test, trust panel | Praveen |
+| 19 | 05 Demo & wrap-up | Live demo | Real model, SHAP explanation, what-if studio, two-dataset lens, stress test, trust notes | Praveen |
 | 20 | 05 Demo & wrap-up | Limitations and ethics | Two acted corpora; not for decisions about people | Praveen |
 | 21 | 05 Demo & wrap-up | Answer to the research question | Accuracy doesn't travel; explanations partly; stability is a diagnostic; XAI earned its place | all |
 | 22 | 05 Demo & wrap-up | Thank you. Questions? | Future work | all |
@@ -45,12 +45,13 @@ Marking criteria covered: working system (demo, slide 19), research contribution
 - Test the microphone in the browser (allow access).
 
 **Steps**
-1. **Analyse a recording → Dataset example → CREMA-D → angry.** Point out: speaker never heard by this model; true label shown; prediction and scores; trust panel (calibrated in-domain).
-2. **Explanation tab.** The plain-language sentence; blue/orange bars; "explain the evidence for" → switch to *sad* to show why it is *not* sad; group chart; eGeMAPS vs WavLM evidence share.
-3. **Signal tab.** Spectrogram and pitch contour: "this is exactly what the model receives".
-4. **Robustness simulation.** Run it: discuss which conditions change the prediction (volume tests the loudness reliance found by SHAP).
-5. **Record with microphone.** One sentence, angry voice, then sad voice. Point to the out-of-domain warning and the typicality check: "the app tells you when not to trust it".
-6. **Cross-corpus & errors page.** H1 chart and the neutral collapse. Close with "accuracy within a dataset is not the whole story".
+1. **Analyse a voice → Dataset clip → CREMA-D → angry.** Point out the console: the emotion, the score ring, all six scores, the waveform; "matches the performed emotion"; the speaker was never heard by this model; the three trust notes (calibrated in-domain).
+2. **Why tab.** The plain-language sentence; blue/orange bars; "explain the evidence for" → switch to *sad* to show why it is *not* sad; group chart; eGeMAPS vs WavLM evidence share.
+3. **What-if studio.** Lower *Loudness attack* and *Overall sound level*: watch the answer move. Pick *sad* under "smallest single change" and read the result aloud.
+4. **Two-dataset lens.** Switch to RAVDESS → neutral: the RAVDESS-only, CREMA-D-only and pooled models often disagree. "This is our research question on one clip."
+5. **Stress test**, then **Emotion compass.** Run the stress test; on the compass the modified copies appear as small dots, showing how far the answer drifts (volume tests the loudness reliance found by SHAP).
+6. **Record.** One sentence, angry voice, then sad voice. Point to the "Different recording conditions" note and the typicality check: "the app tells you when not to trust it".
+7. **New-dataset test page.** H1 chart and the neutral collapse. Close with "accuracy within a dataset is not the whole story".
 
 **If something fails**
 - Microphone blocked → use **Upload a file** with a prepared `.wav` recorded earlier (keep one on the desktop).

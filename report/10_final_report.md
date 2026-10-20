@@ -403,10 +403,11 @@ Numbers from other papers use different protocols; comparisons are indicative on
 A Streamlit application (`app/streamlit_app.py`, `report/09_simulation.md`) runs the real preprocessing and the saved models.
 
 - **Input:** held-out dataset clips (speakers the demo model never heard), file upload, or microphone.
-- **Output:** predicted emotion, all class scores, and a trust panel (calibration in-domain; explicit out-of-domain warning for uploads; a typicality rank against the 8,498 training clips; disagreement between the fusion and eGeMAPS models).
+- **Output:** the predicted emotion in a console panel with a score ring, all six class scores, the clip's waveform, and three trust notes (calibration in-domain or an explicit out-of-domain warning for uploads; a typicality rank against the 8,498 training clips; agreement between the fusion and eGeMAPS models).
 - **Explanation:** exact linear SHAP for any chosen emotion, a plain-language summary, net evidence per feature group, and the share of the fusion model's evidence that comes from named features vs WavLM.
-- **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]); 16 interpretable features with training percentiles.
-- **Robustness simulation:** re-runs the pipeline on quieter/louder, pitch-shifted and noisy copies.
+- **Interactive tools:** an emotion compass (the six scores on a pleasantness × energy layout); a what-if studio (shift one named feature by training standard deviations and recompute the eGeMAPS model exactly, plus the smallest single change that flips the prediction); a two-dataset lens (the same clip judged by eGeMAPS models trained on RAVDESS only, CREMA-D only and both, fold-0 speakers held out); a one-second emotion timeline; and a voice-profile radar against the typical training voice of each emotion.
+- **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]); all 88 eGeMAPS features with their training percentiles.
+- **Stress test:** re-runs the pipeline on quieter/louder, pitch-shifted and noisy copies.
 - **Results pages:** all Phase 6–9 results, interactive.
 
 Pipeline parity was verified: features computed live in the app equal the stored training features (maximum difference 5 × 10⁻⁵). An early fixed out-of-range warning fired on 8.4% of genuine RAVDESS training clips; it was replaced by a rank-based typicality check (warn above the 95th percentile).

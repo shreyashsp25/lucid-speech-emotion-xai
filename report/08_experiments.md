@@ -22,7 +22,7 @@ Two ways of normalising features are compared throughout E2 and E4:
 
 ## 2. E2 — Cross-corpus transfer (H1)
 
-Logistic Regression, UAR in % with 95% CI. In-domain (Phase 6) UAR for reference: RAVDESS eGeMAPS 55.4 / WavLM 81.1 / fusion 82.2; CREMA-D 51.4 / 73.8 / 74.1.
+Logistic Regression, UAR in % with 95% CI. In-domain (Phase 6) UAR for reference, pooled out-of-fold (the fold mean for WavLM on RAVDESS is 81.0): RAVDESS eGeMAPS 55.4 / WavLM 81.1 / fusion 82.2; CREMA-D 51.4 / 73.8 / 74.1.
 
 | Direction | Norm | eGeMAPS | WavLM | Fusion | Δ relative drop (WavLM − eGeMAPS) | H1 |
 |---|---|---|---|---|---|---|

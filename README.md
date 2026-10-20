@@ -23,7 +23,7 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 | 1. Literature survey | ✅ Notes, matrix and synthesis complete |
 | 2. Research gap & methodology | ✅ Direction approved — see [`report/02_research_gap_and_methodology.md`](report/02_research_gap_and_methodology.md) |
 | 3. Dataset investigation | ✅ [`report/03_dataset_investigation.md`](report/03_dataset_investigation.md) |
-| 4. Environment & repository | ✅ Set up |
+| 4. Environment & repository | ✅ [`report/04_environment_and_repository.md`](report/04_environment_and_repository.md) |
 | 5. Audio preprocessing & features | ✅ [`report/05_preprocessing_and_features.md`](report/05_preprocessing_and_features.md) |
 | 6. Modelling | ✅ [`report/06_modelling.md`](report/06_modelling.md) |
 | 7. Explainable AI | ✅ [`report/07_explainability.md`](report/07_explainability.md) |
@@ -48,7 +48,7 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 ## Datasets (not included in this repository)
 | Dataset | Speakers | Clips | Licence | Source |
 |---|---|---|---|---|
-| RAVDESS (speech, audio-only) | 24 | 1,440 | CC BY-NC-SA 4.0 | https://zenodo.org/records/1188976 |
+| RAVDESS (speech, audio-only) | 24 | 1,440 (1,056 used: the 6 shared emotions) | CC BY-NC-SA 4.0 | https://zenodo.org/records/1188976 |
 | CREMA-D | 91 | 7,442 | Open Database License | https://github.com/CheyneyComputerScience/CREMA-D |
 
 Audio files are **not** committed. Download instructions: [`data/README.md`](data/README.md).

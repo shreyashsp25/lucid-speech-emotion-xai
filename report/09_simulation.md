@@ -40,14 +40,14 @@ Every chart is drawn from the trained models or the saved result files; nothing 
 
 1. **Real pipeline, verified.** The app calls the same `load_audio` → openSMILE → WavLM code as training. For a held-out RAVDESS clip, the features computed live in the app equal the stored training features (largest difference 0.00005, float rounding).
 2. **Honest dataset demo.** The final model has heard every corpus clip, so playing one would overstate accuracy. `src/app_assets.py` trains the *same recipe* with all fold-0 speakers held out (5 RAVDESS + 18 CREMA-D speakers). Dataset examples come only from those speakers and use that model, so the true label is known **and** the speaker is new. On these speakers the recipe scored 72.5% (RAVDESS) and 72.3% (CREMA-D) UAR (Phase 9 notebook).
-3. **"Model score", not "confidence".** Scores are shown with a strength label (low < 40%, moderate < 70%, high) and a trust panel:
+3. **"Model score", not "confidence".** Scores are shown as a score ring and six bars, with three trust notes underneath:
    - dataset clips: in-domain calibration is good (ECE 0.025 / 0.021, Phase 8 E6);
    - uploads and microphone: always warned that this is outside the training data, where cross-corpus UAR fell to 39–68% (Phase 8 E2) and scores are over-confident.
 4. **Typicality check instead of a fixed threshold.** The first version warned when more than 10 of 88 features fell outside the 1–99% training range. Tested on the training clips themselves, that rule fired on **8.4% of RAVDESS clips**, too often to be useful. The app now ranks the clip against all training clips and warns only when it is more atypical than 95% of them.
 5. **Two models, disagreement shown.** The prediction comes from the fusion model; the explanation from the interpretable eGeMAPS model. When the two disagree, the app says so rather than hiding it.
 6. **Explanation caveats on screen.** Contributions are relative to the average training clip; correlated features (loudness and sound level) can get opposite signs; group-level evidence is more stable than single features (Phase 8, E3); SHAP shows association, not cause.
 
-## 4. Robustness simulation: why it is scientifically useful
+## 4. Stress test: why it is scientifically useful
 
 Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recording level also depends on the microphone and distance, not only on emotion. The simulation lets anyone check this live: if a copy 12 dB quieter flips the prediction to *sad*, the model is using recording level. Pitch shifts test reliance on speaker voice range (male vs female), and added noise tests recording quality. These are the same failure modes behind the cross-corpus drop in Phase 8.
 

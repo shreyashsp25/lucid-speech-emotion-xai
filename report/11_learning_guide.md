@@ -355,9 +355,10 @@ Across 12 settings: **1 significant gain** (+5.0), **4 significant losses**, **7
 Streamlit turns Python into a web app. Yours:
 1. Takes a **dataset clip, an uploaded file or your microphone**.
 2. Runs the **same preprocessing and features** as training (verified identical).
-3. Shows the **prediction and all 6 scores**, a **trust panel**, and a **SHAP explanation** for any emotion.
-4. Shows **waveform, spectrogram, Mel-spectrogram, pitch**.
-5. Runs a **robustness simulation**: quieter, louder, pitch-shifted and noisy copies. Does the prediction survive? (Volume tests the loudness reliance SHAP found.)
+3. Shows the **prediction and all 6 scores** in a console panel, three **trust notes**, and a **SHAP explanation** ("Why" tab) for any emotion.
+4. Adds interactive tools: an **emotion compass**, a **what-if studio** (move one voice feature, watch the answer change), a **two-dataset lens** (models trained on RAVDESS, CREMA-D or both judge the same clip), a **timeline** and a **voice profile**.
+5. Shows **waveform, spectrogram, Mel-spectrogram, pitch** ("Signal" tab).
+6. Runs a **stress test**: quieter, louder, pitch-shifted and noisy copies. Does the prediction survive? (Volume tests the loudness reliance SHAP found.)
 
 **Honesty features:**
 - Dataset demos use a model trained **without those speakers**, so the test is honest.
