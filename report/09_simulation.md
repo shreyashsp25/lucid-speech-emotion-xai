@@ -53,6 +53,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 
 ## 5. Testing done
 
+- Calibration (October 2026): both flows were run in a headless browser with the real models and real WavLM: a held-out RAVDESS clip with "Calibrate to this speaker" switched on, and an uploaded file after three calibration recordings were uploaded in Step 1 (simulated-microphone happy clip: happy 86% without calibration, happy 99% with it). No errors.
 - October 2026 redesign: every page and all eight Analyse tabs were run in a headless browser on a test copy with the real saved models, real eGeMAPS features, real held-out RAVDESS and CREMA-D clips and the real `microsoft/wavlm-base-plus`; no errors. Checked: dataset clip, file upload, stress test (compass drift appears), what-if sliders, timeline, lens, a 400-pixel-wide phone layout. Example: a held-out RAVDESS neutral clip was called sad by the main model; in the two-dataset lens the RAVDESS-only model called it neutral while the CREMA-D-only and pooled models said sad.
 - Earlier version: all five pages were rendered headless in a test copy of the project with the real Phase 6–9 result files and the real saved model; no errors on any page, tab or input mode (dataset example, random clip, file upload, robustness run).
 - The test environment could not download WavLM weights, so it used a random stand-in for WavLM there; predictions shown in that test are therefore not meaningful. On the Mac the app uses the real `microsoft/wavlm-base-plus`.
@@ -64,12 +65,76 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 2. **What-if studio** → lower loudness attack and sound level → watch the answer move; show the smallest change that turns it sad.
 3. **Two-dataset lens** → RAVDESS → neutral: the three training sources often disagree (our research question on one clip).
 4. **Stress test** → then **Emotion compass** to show how far the copies drift.
-5. *Record* → one sentence, happy then sad → point to the out-of-domain warning and the typicality check.
+5. *Record* → Step 1: three calm sentences to calibrate → Step 2: one sentence, happy then sad → compare the calibrated answer with "without calibration", and point to the typicality check.
 6. **New-dataset test** → H1 chart and neutral collapse (recall 0.09).
 7. **Performance** → leakage chart (why speaker-independent splits matter).
 
-## 7. Limitations
+## 7. "Calibrate to my voice" (October 2026)
 
-- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen.
+**Problem seen in use.** On a laptop microphone the app called normal speech *sad* and every loud
+sentence, including excited shouting, *angry*. Two causes, both already measured in the project:
+the model leans on loudness and sound level (Phase 7), and a new microphone, room and voice shift
+every feature (Phase 8 domain shift). Excitement is also not one of the six trained emotions, so
+the app now says that excited speech usually lands on angry or happy.
+
+**Idea.** People judge emotion against a person's *normal* voice, not against an absolute scale.
+The app now asks for three short recordings of the user's calm, normal voice (or, for a dataset
+clip, uses three other neutral clips of the same held-out speaker) and judges each new recording
+by how it differs from that baseline. This is per-corpus normalisation (Phase 8) done for one
+speaker and one microphone.
+
+**Method (`src/calibration.py`).**
+
+- Baseline = mean eGeMAPS (88) and WavLM layer features of k = 3 neutral recordings of the speaker.
+- Relative model: the same recipe as the final model (StandardScaler, clip at ±5, logistic
+  regression, C = 0.01, balanced classes, eGeMAPS + WavLM fusion), trained on *clip − baseline*
+  for every training speaker of both corpora. Each training speaker's baseline is the mean of
+  3 randomly chosen neutral clips (seed 0), so the model learns to cope with a noisy baseline.
+  A second relative model on eGeMAPS only (C = 1) gives the named-feature SHAP explanation
+  ("compared with your normal voice: lower loudness, …").
+- Calibrated answer = geometric mean of the original model's and the relative model's
+  probabilities, renormalised. An emotion wins only if both models find it plausible.
+- The relative models train in about 7 seconds the first time they are needed and are saved in
+  `models/` (git-ignored). Dataset clips use a relative model trained without held-out fold 0.
+
+**Evaluation (fusion, WavLM layer 7; the 3 baseline clips are removed from the test set;
+mean of 3 random baseline draws; UAR in %).**
+
+| Test | Original | Relative only | Arithmetic mean | **Geometric mean (used)** |
+|---|---|---|---|---|
+| Held-out speakers, RAVDESS fold 0 | 68.3 | 76.1 | 77.4 | **77.5** |
+| Held-out speakers, CREMA-D fold 0 | 71.5 | 74.9 | 75.0 | **75.0** |
+| Train RAVDESS → test CREMA-D | 42.2 | 41.2 | 49.0 | **52.0** |
+| Train CREMA-D → test RAVDESS | 66.3 | 67.8 | 70.9 | **70.8** |
+
+**Simulated laptop microphone.** RAVDESS actor 9 (held out of both models) was re-recorded in
+software: 150–6000 Hz band-pass, 0.3 s room reverb, −10 dB level and noise at 30 dB SNR. The
+baseline used 3 of the actor's 4 neutral clips (all 4 choices tried); 41 test clips per choice.
+
+| Recordings | Original | Relative only | Arithmetic mean | **Geometric mean (used)** |
+|---|---|---|---|---|
+| Studio (unchanged) | 66.7 | 82.3 | 85.9 | **84.9** |
+| Simulated laptop microphone | 37.5 | 54.2 | 59.4 | **65.6** |
+
+On the simulated microphone the original model called 71% of all clips *sad* and recognised no
+neutral clip. The relative model alone over-corrected (sad recall 0.03). The geometric mean kept
+most of both: neutral recall 0.50, sad 0.88, angry 1.00. It was chosen because it was equal or
+better on every held-out test except the studio recordings (−1.0 point).
+
+**Honest limits.**
+
+- One speaker and one simulated microphone are not a user study; real microphones vary more.
+- Calibration fixes the *baseline* shift, not the label set: excitement is still not an emotion
+  the model knows.
+- Sad vs neutral stays the hardest pair. In a single-clip check, a neutral sentence that was
+  2 dB quieter than the three calibration recordings was still called sad (relative model:
+  sad 50%, neutral 42%). The app therefore asks people to calibrate in the same room, with the
+  same microphone and at the same distance.
+- The baseline must really be calm speech; a baseline recorded while upset would shift every
+  answer.
+
+## 8. Limitations
+
+- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7) reduces but does not remove this.
 - The explanation is for the eGeMAPS model; the fusion model's WavLM part (most of its evidence) has no human-readable names, which the app shows explicitly as the eGeMAPS vs WavLM evidence share.
 - Runs locally only (needs the trained model, features and audio). It is a research demo, not a product.

@@ -30,6 +30,7 @@ from src.models import CLASSES
 from src.predict import BUNDLE_PATH, predict_features, extract_one
 from src import app_utils as U
 from src import studio as S
+from src import calibration as K
 
 st.set_page_config(page_title="Lucid voice emotion lab", page_icon="〰️", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -204,6 +205,83 @@ def examples():
     return U.heldout_examples(0)
 
 
+@st.cache_resource(show_spinner="Preparing the voice-calibration model (first time only, about 10 seconds)…")
+def calib_model(layer: int, heldout_fold):
+    return K.load_or_train(layer, heldout_fold)
+
+
+def wave_from_bytes(raw: bytes, suffix: str):
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
+        tmp.write(raw); tmp.flush()
+        try:
+            y, _ = load_audio(tmp.name)
+        except Exception:  # noqa: BLE001
+            return None
+    return y if len(y) >= 0.3 * TARGET_SR else None
+
+
+CALIB_SENTENCES = ["Kids are talking by the door.", "Dogs are sitting by the door.", "It's eleven o'clock."]
+
+
+def calibration_for_speaker(row):
+    """Dataset clip: baseline from up to three OTHER neutral clips of the same held-out speaker."""
+    on = st.toggle("Calibrate to this speaker's normal voice",
+                   help="Uses up to three other neutral clips of the same held-out speaker as the reference point.")
+    if not on:
+        return None, None
+    ex = examples()
+    same = ex[(ex["speaker_id"] == row["speaker_id"]) & (ex["label"] == "neutral") & (ex["file"] != row["file"])]
+    if same.empty:
+        st.info("This speaker has no other neutral clips on this computer, so calibration is not available.")
+        return None, None
+    pick = same.sample(n=min(3, len(same)), random_state=0)
+    feats = [features_for(load_audio(ROOT / p)[0]) for p in pick["path"]]
+    return K.baseline_from(feats), f"{len(feats)} other neutral clips of speaker {row['speaker_id']}"
+
+
+def calibration_for_user():
+    """Own recordings: up to three recordings of the user's normal voice, kept only in this browser session."""
+    store = st.session_state.setdefault("calib_store", {})
+    gen = st.session_state.setdefault("calib_gen", 0)
+    ready = len(store)
+    with st.expander(f"Step 1: calibrate to my voice ({ready} of 3 recordings ready)", expanded=ready < 3):
+        st.markdown("Say each sentence in your **normal, calm voice**, the way you would talk to a friend. The app "
+                    "then judges every recording by how it differs from *your* normal voice and *your* microphone, "
+                    "instead of the recording studios it was trained in.")
+        cols = st.columns(3)
+        for i, col in enumerate(cols):
+            rec = col.audio_input(f"Normal voice {i + 1}: “{CALIB_SENTENCES[i]}”", key=f"calib_rec_{gen}_{i}")
+            if rec is not None:
+                sig = hash(rec.getvalue())
+                if store.get(f"slot{i}", (None,))[0] != sig:
+                    y = wave_from_bytes(rec.getvalue(), ".wav")
+                    if y is None:
+                        col.error("Too short or unreadable. Record the full sentence again.")
+                    else:
+                        store[f"slot{i}"] = (sig, features_for(y))
+        ups = st.file_uploader("Or upload recordings of your normal voice (WAV, FLAC, OGG or MP3)",
+                               type=["wav", "flac", "ogg", "mp3"], accept_multiple_files=True, key=f"calib_up_{gen}")
+        for up in ups or []:
+            key = f"up:{up.name}:{up.size}"
+            if key not in store:
+                y = wave_from_bytes(up.getvalue(), Path(up.name).suffix.lower())
+                if y is not None:
+                    store[key] = (key, features_for(y))
+        if store and st.button("Clear my calibration"):
+            store.clear()
+            st.session_state["calib_gen"] = gen + 1
+            st.rerun()
+        st.caption("Recordings stay on this computer and are forgotten when you close the page. Three recordings "
+                   "work best; one or two also work, but less reliably. Record in the same room, with the same "
+                   "microphone and at the same distance as your later recordings: in our tests a normal sentence "
+                   "only 2 dB quieter than the calibration was still read as sad.")
+    if not store:
+        return None, None
+    if not st.toggle("Use my calibration", value=True):
+        return None, None
+    return K.baseline_from([v[1] for v in store.values()]), f"{len(store)} recording{'s' if len(store) != 1 else ''} of your normal voice"
+
+
 # ===========================================================================
 # PAGE 1 — Analyse a voice
 # ===========================================================================
@@ -237,19 +315,23 @@ def get_input():
         row = sub.iloc[st.session_state.pick % len(sub)]
         path = ROOT / row["path"]
         y, _ = load_audio(path)
-        return path.read_bytes(), y, row["label"], row, U.HELDOUT_PATH, False, ".wav"
+        base, base_desc = calibration_for_speaker(row)
+        return path.read_bytes(), y, row["label"], row, U.HELDOUT_PATH, False, ".wav", base, base_desc
+    base, base_desc = calibration_for_user()
+    st.caption("The model knows six emotions: neutral, happy, sad, angry, fearful and disgust. Excitement is not one "
+               "of them, so excited shouting usually lands on angry or happy.")
     if src_choice == "Upload a file":
         up = st.file_uploader("A WAV, FLAC, OGG or MP3 file with 2 to 5 seconds of one person speaking",
                               type=["wav", "flac", "ogg", "mp3"])
         if up is None:
             st.info("Upload a short recording to analyse it.")
             return None
-        return up.getvalue(), None, None, None, BUNDLE_PATH, True, Path(up.name).suffix.lower()
-    rec = st.audio_input("Record one sentence, for example “Kids are talking by the door”")
+        return up.getvalue(), None, None, None, BUNDLE_PATH, True, Path(up.name).suffix.lower(), base, base_desc
+    rec = st.audio_input("Step 2: record one sentence with an emotion, for example “Kids are talking by the door”")
     if rec is None:
         st.info("Press the microphone, say one sentence with an emotion, then press stop.")
         return None
-    return rec.getvalue(), None, None, None, BUNDLE_PATH, True, ".wav"
+    return rec.getvalue(), None, None, None, BUNDLE_PATH, True, ".wav", base, base_desc
 
 
 def page_analyse():
@@ -267,7 +349,7 @@ def page_analyse():
                     f'<div class="trace">{S.waveform_svg(None, SIGNAL)}</div></div>', unsafe_allow_html=True)
         footer()
         return
-    raw_bytes, y, truth, row, bundle_path, out_of_domain, suffix = got
+    raw_bytes, y, truth, row, bundle_path, out_of_domain, suffix, base, base_desc = got
     if y is None:
         with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
             tmp.write(raw_bytes); tmp.flush()
@@ -290,15 +372,28 @@ def page_analyse():
         res = predict_features(feats["egemaps"], feats["wavlm"], bundle)
     duration = len(y) / TARGET_SR
     proba = pd.Series(res["proba"]).reindex(CLASSES).astype(float)
-    label, top = res["label"], float(proba.max())
+    orig_label, orig_top = res["label"], float(proba.max())
+    cal, relm = None, None
+    if base is not None:
+        relm = calib_model(int(bundle["layer"]), 0 if row is not None else None)
+        cal = K.calibrated_predict(feats["egemaps"], feats["wavlm"], base, relm, proba.values)
+        proba = pd.Series(cal["proba"]).reindex(CLASSES).astype(float)
+        rel_z = relm["explainer"].predict_proba(cal["relative_egemaps"][None, :])[0]
+        second_label = CLASSES[int(np.argmax(rel_z))]
+    else:
+        second_label = res["explainer_label"]
+    label, top = CLASSES[int(np.argmax(proba.values))], float(proba.max())
 
     # ---------------- console ----------------
     tags = []
     if truth is not None:
         tags.append('<span class="tag good">matches the performed emotion</span>' if truth == label else
                     f'<span class="tag bad">actor performed {truth}</span>')
-    agree = res["explainer_label"] == label
-    tags.append(f'<span class="tag">{"named-feature model agrees" if agree else "named-feature model says " + res["explainer_label"]}</span>')
+    if cal is not None:
+        tags.append('<span class="tag good">calibrated to ' + ("your voice" if row is None else "this speaker") + '</span>')
+        tags.append(f'<span class="tag">without calibration: {orig_label} {orig_top:.0%}</span>')
+    agree = second_label == label
+    tags.append(f'<span class="tag">{"named-feature model agrees" if agree else "named-feature model says " + second_label}</span>')
     who = (f"held-out speaker {row['speaker_id']} ({row['gender']}) from {row['corpus_name']}, never heard by this model"
            if row is not None else "your recording, analysed on this computer and not stored")
     st.markdown(
@@ -315,10 +410,18 @@ def page_analyse():
     lo, hi, ref = ood_reference()
     n_out = int(((feats["egemaps"] < lo) | (feats["egemaps"] > hi)).sum())
     rank = float((ref < n_out).mean() * 100)
-    if out_of_domain:
+    if cal is not None and out_of_domain:
+        n1 = ('', "Calibrated to your voice",
+              f"This recording is compared with {base_desc}. On a simulated laptop microphone, calibration raised "
+              "accuracy (UAR) from 38% to 66% in our tests. Still read the score as approximate.")
+    elif cal is not None:
+        n1 = ('', "Calibrated to this speaker",
+              f"Compared with {base_desc}. On held-out speakers, calibration raised UAR from 68% to 78% (RAVDESS) "
+              "and from 72% to 75% (CREMA-D) in our tests.")
+    elif out_of_domain:
         n1 = ('caution', "Different recording conditions",
-              "Your microphone and room differ from the training studios. When we tested on a new dataset, "
-              "accuracy fell from 74–82% to 39–68% and scores became over-confident. Read the score as rough.")
+              "Your microphone and room differ from the training studios, and the model leans on loudness, so normal "
+              "speech often reads as sad. Calibrate to your voice (step 1) to fix most of this.")
     else:
         n1 = ('', "Same recording style, new speaker",
               f"On clips like this the score is honest: calibration error {e6.get('ravdess_fusion', 0.025):.3f} "
@@ -327,7 +430,7 @@ def page_analyse():
           f"{n_out} of 88 features fall outside the normal training range, which is more unusual than "
           f"{rank:.0f}% of the 8,498 training clips." + (" Treat the result with caution." if rank >= 95 else ""))
     n3 = ('' if agree else 'caution', "Second opinion agrees" if agree else "Second opinion differs",
-          f"A simpler model that only uses the 88 named features says {res['explainer_label']}. "
+          f"A simpler model that only uses the 88 named features says {second_label}. "
           + ("Both models point the same way." if agree else "The evidence is mixed."))
     st.markdown('<div class="notes">' + "".join(
         f'<div class="note {c}"><h4>{h}</h4><p>{p}</p></div>' for c, h, p in (n1, n2, n3)) + '</div>',
@@ -345,9 +448,22 @@ def page_analyse():
         k_name = st.selectbox("Explain the evidence for", CLASSES, index=CLASSES.index(label),
                               help="Why this emotion, or why not another one?")
         k = CLASSES.index(k_name)
-        expl = U.local_shap(feats["egemaps"], bundle, k)
-        expl["percentile"] = U.percentiles(expl["value"].values, train[list(expl["feature"])])
-        st.markdown(U.explanation_sentence(expl, k_name))
+        if cal is not None:
+            phi = K.relative_shap(cal["relative_egemaps"], relm, k)
+            expl = pd.DataFrame({"feature": names, "readable": [U.readable(n) for n in names],
+                                 "group": [U.feature_group(n) for n in names],
+                                 "value": cal["relative_egemaps"], "contribution": phi})
+            expl = expl.reindex(expl["contribution"].abs().sort_values(ascending=False).index).reset_index(drop=True)
+            expl["percentile"] = np.nan
+            toward = expl[expl["contribution"] > 0].head(3)
+            cues = "; ".join(f"{'higher' if r.value > 0 else 'lower'} {r.readable[0].lower() + r.readable[1:] if not r.readable[:2].isupper() else r.readable}"
+                             for r in toward.itertuples())
+            st.markdown(f"Compared with {'your' if row is None else 'this speaker’s'} normal voice, the main cues toward "
+                        f"**{k_name}** are: {cues or 'none strong'}.")
+        else:
+            expl = U.local_shap(feats["egemaps"], bundle, k)
+            expl["percentile"] = U.percentiles(expl["value"].values, train[list(expl["feature"])])
+            st.markdown(U.explanation_sentence(expl, k_name))
         ca, cb = st.columns([1.7, 1])
         with ca:
             top_n = expl.head(12).iloc[::-1]
@@ -355,8 +471,10 @@ def page_analyse():
                 x=top_n["contribution"], y=top_n["readable"], orientation="h",
                 marker_color=["#2A78D6" if v > 0 else "#EB6834" for v in top_n["contribution"]],
                 customdata=np.c_[top_n["value"], top_n["percentile"], top_n["group"]],
-                hovertemplate="<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>value %{customdata[0]:.3f}"
-                              "<br>training percentile %{customdata[1]:.0f}<br>group %{customdata[2]}<extra></extra>"))
+                hovertemplate=("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>difference from the normal voice "
+                               "%{customdata[0]:+.3f}<br>group %{customdata[2]}<extra></extra>") if cal is not None else
+                              ("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>value %{customdata[0]:.3f}"
+                               "<br>training percentile %{customdata[1]:.0f}<br>group %{customdata[2]}<extra></extra>")))
             fig.add_vline(x=0, line_color="gray")
             fig.update_xaxes(title="contribution (log-odds): blue pushes toward, orange pushes away")
             show(style(fig, 470, legend=False, title=f"The 12 voice features that mattered most for {k_name}"))
@@ -367,14 +485,23 @@ def page_analyse():
             fig.add_hline(y=0, line_color="gray")
             fig.update_traces(cliponaxis=False)
             show(style(fig, 250, legend=False, title="Net evidence by feature group").update_layout(yaxis_title="log-odds"))
-            split = U.fusion_evidence_split(feats["egemaps"], feats["wavlm"][bundle["layer"]], bundle, k)
-            fig = go.Figure([go.Bar(y=[""], x=[v * 100], name=n, orientation="h", marker_color=c,
-                                    text=f"{v:.0%}", textposition="inside")
-                             for (n, v), c in zip(split.items(), ["#EB6834", "#7B5BD6"])])
-            fig.update_layout(barmode="stack")
-            fig.update_xaxes(range=[0, 100], title="% of the main model's evidence for this emotion")
-            show(style(fig, 200, title="Named features versus WavLM"))
-        st.caption("Exact linear SHAP of the named-feature model, relative to the average training clip. "
+            if cal is None:
+                split = U.fusion_evidence_split(feats["egemaps"], feats["wavlm"][bundle["layer"]], bundle, k)
+                fig = go.Figure([go.Bar(y=[""], x=[v * 100], name=n, orientation="h", marker_color=c,
+                                        text=f"{v:.0%}", textposition="inside")
+                                 for (n, v), c in zip(split.items(), ["#EB6834", "#7B5BD6"])])
+                fig.update_layout(barmode="stack")
+                fig.update_xaxes(range=[0, 100], title="% of the main model's evidence for this emotion")
+                show(style(fig, 200, title="Named features versus WavLM"))
+            else:
+                rel_p = pd.Series(cal["relative_proba"]).reindex(CLASSES)
+                st.markdown(f"**How calibration changed the answer.** The original model said **{orig_label}** "
+                            f"({orig_top:.0%}); the model that compares with the normal voice says "
+                            f"**{rel_p.idxmax()}** ({rel_p.max():.0%}). The result above combines the two: an emotion wins only when both models find it likely.")
+        st.caption(("Calibrated: exact linear SHAP of a named-feature model trained on differences from each "
+                    "speaker's own normal voice, so every bar compares this clip with the normal voice. "
+                    if cal is not None else
+                    "Exact linear SHAP of the named-feature model, relative to the average training clip. ") +
                    "Correlated features (loudness and overall sound level) can get opposite signs that largely "
                    "cancel, so read them together. Feature groups are more stable than single features (Phase 8). "
                    "SHAP shows what the model uses; it does not prove that a voice property causes an emotion.")

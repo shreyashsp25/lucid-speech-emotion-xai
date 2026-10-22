@@ -90,4 +90,6 @@ streamlit run app/streamlit_app.py
 ```
 Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).
 
-What it does: predicts the emotion with the real model, explains it with exact SHAP, and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**. Details: [`report/09_simulation.md`](report/09_simulation.md).
+What it does: predicts the emotion with the real model, explains it with exact SHAP, and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**.
+
+**Calibrate to my voice.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios. Before recording, say three calm sentences (Step 1); the app then judges each recording by how it differs from *your* normal voice and microphone. On held-out speakers this raised UAR from 68% to 78% (RAVDESS) and on a simulated laptop microphone from 38% to 66%. The first use trains a small extra model in about 7 seconds (saved in `models/`). Details: [`report/09_simulation.md`](report/09_simulation.md).
