@@ -53,6 +53,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 
 ## 5. Testing done
 
+- Corrections (October 2026): in a headless browser, with the real models, a correction was taught after calibrating, the next upload used the personal model, "Forget corrections" restored the shared model, and without calibration the panel asks the user to calibrate first. No errors.
 - Calibration (October 2026): both flows were run in a headless browser with the real models and real WavLM: a held-out RAVDESS clip with "Calibrate to this speaker" switched on, and an uploaded file after three calibration recordings were uploaded in Step 1 (simulated-microphone happy clip: happy 86% without calibration, happy 99% with it). No errors.
 - October 2026 redesign: every page and all eight Analyse tabs were run in a headless browser on a test copy with the real saved models, real eGeMAPS features, real held-out RAVDESS and CREMA-D clips and the real `microsoft/wavlm-base-plus`; no errors. Checked: dataset clip, file upload, stress test (compass drift appears), what-if sliders, timeline, lens, a 400-pixel-wide phone layout. Example: a held-out RAVDESS neutral clip was called sad by the main model; in the two-dataset lens the RAVDESS-only model called it neutral while the CREMA-D-only and pooled models said sad.
 - Earlier version: all five pages were rendered headless in a test copy of the project with the real Phase 6–9 result files and the real saved model; no errors on any page, tab or input mode (dataset example, random clip, file upload, robustness run).
@@ -65,7 +66,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 2. **What-if studio** → lower loudness attack and sound level → watch the answer move; show the smallest change that turns it sad.
 3. **Two-dataset lens** → RAVDESS → neutral: the three training sources often disagree (our research question on one clip).
 4. **Stress test** → then **Emotion compass** to show how far the copies drift.
-5. *Record* → Step 1: three calm sentences to calibrate → Step 2: one sentence, happy then sad → compare the calibrated answer with "without calibration", and point to the typicality check.
+5. *Record* → Step 1: three calm sentences to calibrate → Step 2: one sentence, happy then sad → compare the calibrated answer with "without calibration"; if it is wrong, use "Wrong answer?" to teach it, then record again.
 6. **New-dataset test** → H1 chart and neutral collapse (recall 0.09).
 7. **Performance** → leakage chart (why speaker-independent splits matter).
 
@@ -133,8 +134,78 @@ better on every held-out test except the studio recordings (−1.0 point).
 - The baseline must really be calm speech; a baseline recorded while upset would shift every
   answer.
 
-## 8. Limitations
+## 8. "That's wrong, I was …": learning from the user's corrections (October 2026)
 
-- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7) reduces but does not remove this.
+**Problem seen in use.** Excited shouting came out as *angry*. There is no "excited" label, and
+excitement and anger share what the features measure best: high pitch, loudness and fast
+speech. Those cues measure how much energy a voice has, not whether it is positive or negative.
+The actors' happy clips were never shouted, so the nearest training examples to excited
+shouting are the angry ones. Calibration (section 7) cannot fix this; it moves the reference
+point but does not teach the model what this person's excitement sounds like.
+
+**Idea.** When the answer is wrong, the user says what they were really feeling ("happy /
+excited", "neutral", …). The recording becomes a training example of *their* voice, and the
+app re-fits in a few seconds.
+
+**Method (`src/personal.py`).** The correction, expressed as a difference from the user's
+calibrated normal voice, is added to the relative model's training data with its label and a
+weight of 100 average training clips. Only the last logistic-regression layer is re-fitted,
+starting from the shared weights; the scaling and clipping stay fixed. The original model is
+not changed, and the answer is still the geometric mean of both models. Corrections need a
+calibration and live only in the browser session.
+
+**How it was tested.** For every held-out speaker, a simulated user goes through their clips in
+random order. Whenever the calibrated answer is wrong, they correct it with the true label,
+until m corrections have been made. Accuracy is then measured on that speaker's clips that come
+*after* the last correction (never seen), and compared with no corrections on the same clips.
+The baseline is 3 neutral clips, as in section 7. Fusion, layer 7, UAR in %.
+
+*Choosing the weight* (fold-1 speakers, models trained on folds 2–4, 3 corrections, first
+design that also re-fitted the original model):
+
+| Weight | 10 | 30 | 100 | 300 |
+|---|---|---|---|---|
+| RAVDESS (72.1 without) | 75.3 | 74.0 | **76.0** | 71.8 |
+| CREMA-D (77.6 without) | 79.1 | 79.0 | **78.7** | 78.0 |
+
+Weight 100 had the best mean, so it was kept.
+
+*First design rejected.* Re-fitting the original model as well helped on held-out speakers
+(RAVDESS 75 → 88 after 5 corrections). But with a RAVDESS-trained model on CREMA-D speakers it
+**hurt**: 52.0 → 42.4 after one correction, and still 46.7 with weight 10. A new speaker's
+recordings sit together, far from the training data, so one correction pulled *all* of them
+towards the corrected emotion. Relative features remove that per-speaker offset, so the final
+design teaches only the relative model.
+
+*Final design* (only the relative model learns, weight 100):
+
+| Test | No corrections | 1 | 3 | 5 |
+|---|---|---|---|---|
+| Held-out speakers, RAVDESS fold 0 | 75.4 | 76.2 | 82.7 | 84.5 |
+| Held-out speakers, CREMA-D fold 0 | 74.6 | 75.8 | 76.8 | 76.6 |
+| Train RAVDESS → test CREMA-D (30 speakers) | 52.0 | 52.1 | 52.5 | 51.9 |
+| Train CREMA-D → test RAVDESS | 70.1 | 71.2 | 74.8 | 77.2 |
+| … happy called angry (CREMA-D → RAVDESS) | 21% | 17% | 10% | 12% |
+| … angry called happy (CREMA-D → RAVDESS) | 1% | 3% | 2% | 2% |
+
+The "no corrections" column is measured on the same clips as each column; the first value is
+shown. The CREMA-D → RAVDESS rows are the closest match to the excitement problem: a model
+meeting an unfamiliar recording style and calling happy speech angry. Three corrections halved
+that error without making real anger read as happy.
+
+**Honest limits.**
+
+- No data set here has real excited speech, so excitement itself could not be measured. The
+  test uses acted happy speech that the model mistook for anger.
+- With a model facing a very different style (RAVDESS → CREMA-D) corrections neither helped nor
+  hurt.
+- A corrected recording may keep its old answer, because the original model still has a say.
+  The app says so: corrections show their effect on the next recordings.
+- Corrections teach *this* user's voice in *this* session; nothing is saved or shared.
+
+## 9. Limitations
+
+- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7) and correcting its mistakes (section 8) reduce but do not remove this.
+- The six emotions are acted categories; excitement, boredom and many everyday feelings are not among them.
 - The explanation is for the eGeMAPS model; the fusion model's WavLM part (most of its evidence) has no human-readable names, which the app shows explicitly as the eGeMAPS vs WavLM evidence share.
 - Runs locally only (needs the trained model, features and audio). It is a research demo, not a product.

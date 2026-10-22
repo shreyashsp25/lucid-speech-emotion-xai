@@ -31,6 +31,7 @@ from src.predict import BUNDLE_PATH, predict_features, extract_one
 from src import app_utils as U
 from src import studio as S
 from src import calibration as K
+from src import personal as PZ
 
 st.set_page_config(page_title="Lucid voice emotion lab", page_icon="〰️", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -210,6 +211,69 @@ def calib_model(layer: int, heldout_fold):
     return K.load_or_train(layer, heldout_fold)
 
 
+@st.cache_resource(show_spinner="Getting ready to learn from your corrections (first time only, about 10 seconds)…")
+def personaliser_rel(layer: int):
+    X, y, _ = K.relative_training_data(layer, None)
+    return PZ.Personaliser(calib_model(layer, None)["predictor"], X, y)
+
+
+TEACH_OPTIONS = ["neutral", "happy / excited", "sad", "angry", "fearful", "disgust"]
+
+
+def personal_model(layer: int, base):
+    """The calibrated (relative) model re-fitted with the user's corrections, or None.
+
+    Only the calibrated model learns: on held-out speakers, teaching the original model as well
+    pulled ALL of a new speaker's recordings towards the corrected emotion (report/09_simulation.md, section 8).
+    """
+    ex = st.session_state.get("teach", {})
+    if not ex or base is None:
+        return None
+    key = (tuple(sorted((k, v["label"]) for k, v in ex.items())), float(np.sum(base["egemaps"])))
+    cached = st.session_state.get("teach_fit")
+    if cached and cached[0] == key:
+        return cached[1]
+    with st.spinner(f"Learning from your {len(ex)} correction{'s' if len(ex) != 1 else ''}…"):
+        E = list(ex.values())
+        yp = np.array([CLASSES.index(e["label"]) for e in E])
+        Xr = np.array([np.hstack([e["egemaps"] - base["egemaps"], e["wavlm"][layer] - base["wavlm"][layer]]) for e in E])
+        pR = personaliser_rel(layer).fit(Xr, yp)
+    st.session_state["teach_fit"] = (key, pR)
+    return pR
+
+
+def teach_panel(clip_id: str, feats: dict, label: str, calibrated: bool):
+    """'That's wrong, I was ...': save this recording as an example of the user's own voice."""
+    ex = st.session_state.setdefault("teach", {})
+    with st.container(border=True):
+        if not calibrated:
+            st.markdown("**Wrong answer?** Calibrate to your voice first (Step 1 above). Then you can tell it what "
+                        "you were really feeling whenever it gets you wrong, and it learns your voice.")
+            return
+        if clip_id in ex:
+            st.markdown(f"**Saved: this recording is {ex[clip_id]['label']}.** The answer above may not change yet, "
+                        "because the original model still has a say. Corrections work over your next recordings, "
+                        "and two or three of the same feeling work much better than one.")
+        else:
+            st.markdown(f"**Wrong answer?** If **{label}** is not what you were feeling, tell it what you were "
+                        "really feeling. It learns from this recording and uses that for your next recordings.")
+        c1, c2 = st.columns([3.2, 1])
+        pick = c1.segmented_control("I was actually", TEACH_OPTIONS, key=f"teach_pick_{clip_id}",
+                                    label_visibility="collapsed")
+        if c2.button("Teach it", disabled=pick is None, width="stretch", type="primary"):
+            ex[clip_id] = {"egemaps": feats["egemaps"], "wavlm": feats["wavlm"], "label": pick.split(" /")[0]}
+            st.rerun()
+        if ex:
+            counts = pd.Series([v["label"] for v in ex.values()]).value_counts()
+            c1.caption(f"{len(ex)} correction{'s' if len(ex) != 1 else ''} saved for this session: "
+                       + ", ".join(f"{k} × {v}" for k, v in counts.items())
+                       + ". The model has no 'excited' label, so excitement is learned as happy.")
+            if c2.button("Forget corrections", width="stretch"):
+                st.session_state["teach"] = {}
+                st.session_state.pop("teach_fit", None)
+                st.rerun()
+
+
 def wave_from_bytes(raw: bytes, suffix: str):
     with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
         tmp.write(raw); tmp.flush()
@@ -373,10 +437,14 @@ def page_analyse():
     duration = len(y) / TARGET_SR
     proba = pd.Series(res["proba"]).reindex(CLASSES).astype(float)
     orig_label, orig_top = res["label"], float(proba.max())
+    clip_id = f"{len(y)}:{float(np.abs(y).sum()):.4f}"
+    pR = personal_model(int(bundle["layer"]), base) if row is None else None
+    n_teach = len(st.session_state.get("teach", {})) if pR is not None else 0
     cal, relm = None, None
     if base is not None:
         relm = calib_model(int(bundle["layer"]), 0 if row is not None else None)
-        cal = K.calibrated_predict(feats["egemaps"], feats["wavlm"], base, relm, proba.values)
+        rel_use = relm if pR is None else {**relm, "predictor": pR}
+        cal = K.calibrated_predict(feats["egemaps"], feats["wavlm"], base, rel_use, proba.values)
         proba = pd.Series(cal["proba"]).reindex(CLASSES).astype(float)
         rel_z = relm["explainer"].predict_proba(cal["relative_egemaps"][None, :])[0]
         second_label = CLASSES[int(np.argmax(rel_z))]
@@ -391,7 +459,13 @@ def page_analyse():
                     f'<span class="tag bad">actor performed {truth}</span>')
     if cal is not None:
         tags.append('<span class="tag good">calibrated to ' + ("your voice" if row is None else "this speaker") + '</span>')
-        tags.append(f'<span class="tag">without calibration: {orig_label} {orig_top:.0%}</span>')
+    if n_teach:
+        tags.append(f'<span class="tag good">learned from {n_teach} correction{"s" if n_teach != 1 else ""}</span>')
+        if clip_id in st.session_state.get("teach", {}):
+            tags.append('<span class="tag">you taught it this recording</span>')
+    if cal is not None or n_teach:
+        tags.append(f'<span class="tag">{"without calibration" if not n_teach else "without calibration or corrections"}: '
+                    f'{orig_label} {orig_top:.0%}</span>')
     agree = second_label == label
     tags.append(f'<span class="tag">{"named-feature model agrees" if agree else "named-feature model says " + second_label}</span>')
     who = (f"held-out speaker {row['speaker_id']} ({row['gender']}) from {row['corpus_name']}, never heard by this model"
@@ -405,6 +479,9 @@ def page_analyse():
         f'<div class="trace-cap">{duration:.2f} seconds of speech after trimming silence. Source: {who}.</div></div></div>',
         unsafe_allow_html=True)
 
+    if row is None:
+        teach_panel(clip_id, feats, label, base is not None)
+
     # ---------------- trust notes ----------------
     e6 = U.load_json("phase8_e6_summary.json").get("calibration_ece", {})
     lo, hi, ref = ood_reference()
@@ -413,7 +490,10 @@ def page_analyse():
     if cal is not None and out_of_domain:
         n1 = ('', "Calibrated to your voice",
               f"This recording is compared with {base_desc}. On a simulated laptop microphone, calibration raised "
-              "accuracy (UAR) from 38% to 66% in our tests. Still read the score as approximate.")
+              "accuracy (UAR) from 38% to 66% in our tests. Still read the score as approximate."
+              + (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
+                 "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was called "
+                 "angry (21% to 10%)." if n_teach else ""))
     elif cal is not None:
         n1 = ('', "Calibrated to this speaker",
               f"Compared with {base_desc}. On held-out speakers, calibration raised UAR from 68% to 78% (RAVDESS) "

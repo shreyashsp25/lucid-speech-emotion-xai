@@ -60,11 +60,11 @@ def _logreg(C: float) -> Pipeline:
     return Pipeline(preprocess_steps() + [("clf", LogisticRegression(C=C, max_iter=3000, class_weight="balanced"))])
 
 
-def train_relative(layer: int, heldout_fold: int | None = None, k: int = K_BASELINE, seed: int = 0,
-                   C_fusion: float = 0.01, C_egemaps: float = 1.0) -> dict:
-    """Relative fusion model (predicts) and relative eGeMAPS model (explains) on both corpora."""
+def relative_training_data(layer: int, heldout_fold: int | None = None, k: int = K_BASELINE,
+                           seed: int = 0) -> tuple[np.ndarray, np.ndarray, list[str]]:
+    """Relative fusion features (eGeMAPS first, then the WavLM layer) and labels of every training speaker."""
     rng = np.random.default_rng(seed)
-    Xf, Xe, ys = [], [], []
+    Xf, ys = [], []
     names = None
     for c in ["ravdess", "cremad"]:
         d = load_corpus(c)
@@ -72,9 +72,16 @@ def train_relative(layer: int, heldout_fold: int | None = None, k: int = K_BASEL
         y, spk = np.asarray(d["y"])[keep], np.asarray(d["groups"])[keep]
         fusion = np.hstack([d["egemaps"][keep], d["wavlm"][keep, layer].astype(np.float32)])
         rel, ok = speaker_relative(fusion, y, spk, k, rng)
-        Xf.append(rel[ok]); Xe.append(rel[ok, : d["egemaps"].shape[1]]); ys.append(y[ok])
+        Xf.append(rel[ok]); ys.append(y[ok])
         names = d["egemaps_names"]
-    Xf, Xe, y = np.vstack(Xf), np.vstack(Xe), np.concatenate(ys)
+    return np.vstack(Xf), np.concatenate(ys), names
+
+
+def train_relative(layer: int, heldout_fold: int | None = None, k: int = K_BASELINE, seed: int = 0,
+                   C_fusion: float = 0.01, C_egemaps: float = 1.0) -> dict:
+    """Relative fusion model (predicts) and relative eGeMAPS model (explains) on both corpora."""
+    Xf, y, names = relative_training_data(layer, heldout_fold, k, seed)
+    Xe = Xf[:, : len(names)]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pred = _logreg(C_fusion).fit(Xf, y)
