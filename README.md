@@ -35,8 +35,8 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 | File | What it is |
 |---|---|
 | [`report/Lucid_Final_Report.docx`](report/Lucid_Final_Report.docx) | Final report (Word); Markdown source [`report/10_final_report.md`](report/10_final_report.md) |
-| [`report/Lucid_Final_Presentation.pptx`](report/Lucid_Final_Presentation.pptx) | Final presentation, 22 slides with speaker notes; plan and demo script in [`report/10_final_presentation.md`](report/10_final_presentation.md) |
-| [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 47 examiner-style questions with answers |
+| [`report/Lucid_Final_Presentation.pptx`](report/Lucid_Final_Presentation.pptx) | Final presentation, 23 slides with speaker notes; plan and demo script in [`report/10_final_presentation.md`](report/10_final_presentation.md) |
+| [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 54 examiner-style questions with answers |
 | [`report/Lucid_Learning_Guide.docx`](report/Lucid_Learning_Guide.docx) | The whole project explained from the basics, with worked examples (short version: [`report/11_learning_guide.md`](report/11_learning_guide.md)) |
 | [`report/10_team_plan.md`](report/10_team_plan.md) | Ownership, shared-understanding sessions, submission checklist |
 
@@ -57,7 +57,8 @@ Audio files are **not** committed. Download instructions: [`data/README.md`](dat
 ```
 literature/     literature matrix, synthesis, per-paper notes
 notebooks/      01–07, run in order (data → features → models → XAI → experiments → evaluation → final model)
-src/            reusable code: data, audio, features, models, evaluation, explain, experiments, predict, app helpers
+src/            reusable code: data, audio, features, models, evaluation, explain, experiments, predict, app helpers,
+                voice adaptation (calibration, personal, augment, robust_features, voice_experiments)
 data/           metadata and download instructions (raw audio and features stay local, git-ignored)
 results/        figures and result tables for every phase
 models/         trained models (local only, git-ignored; rebuilt by notebook 07 and src.app_assets)
@@ -86,12 +87,20 @@ pip install -r requirements.txt
 ```bash
 source .venv/bin/activate
 python -m src.app_assets                         # once: held-out demo model (~3–5 min)
+python -m src.robust_features train_aug          # optional, once (~40–60 min): simulated-microphone copies
+python -m src.app_assets robust                  # optional, once (~20 s): microphone-robust model
 streamlit run app/streamlit_app.py
 ```
 Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).
 
-What it does: predicts the emotion with the real model, explains it with exact SHAP, and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**.
+What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**.
 
-**Calibrate to my voice.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios. Before recording, say three calm sentences (Step 1); the app then judges each recording by how it differs from *your* normal voice and microphone. On held-out speakers this raised UAR from 68% to 78% (RAVDESS) and on a simulated laptop microphone from 38% to 66%. The first use trains a small extra model in about 7 seconds (saved in `models/`).
+**Built for real voices, not just studio clips.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios, and excited shouting sounds *angry*. Three additions, each tested on speakers the models never heard ([`report/09_simulation.md`](report/09_simulation.md), sections 7–9; reproduce with `python -m src.voice_experiments calibration|corrections|robust`):
 
-**"Wrong answer?" corrections.** The model has no *excited* label, and excited shouting sounds like the actors' *angry* clips (high pitch, loud). When it gets you wrong, tell it what you really felt; it learns your voice in a few seconds. On new speakers, 3 corrections raised accuracy by 1 to 7 points, and in an unfamiliar recording style happy speech called angry fell from 21% to 10%. Details: [`report/09_simulation.md`](report/09_simulation.md).
+| Addition | What it does | Tested gain |
+|---|---|---|
+| **Microphone-robust model** | trained on every clip twice: as recorded and through a random simulated microphone and room | +3 to +8 points on simulated laptop and phone mics, +15 to +18 in a far, echoey room; no loss on studio audio |
+| **Calibrate to my voice** | three calm sentences become your baseline; recordings are judged by how they differ from *your* normal voice | UAR 69 → 77% (RAVDESS) and 72 → 75% (CREMA-D) on new speakers |
+| **"Wrong answer?" corrections** | tell it what you really felt; it learns your voice in a few seconds | 3 corrections: +1 to +7 points; happy called angry 21% → 10% in an unfamiliar recording style |
+
+The model has no *excited* label: excitement is learned as *happy* through corrections. All simulated conditions are simulations, not a user study.

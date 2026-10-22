@@ -369,7 +369,90 @@ Streamlit turns Python into a web app. Yours:
 
 ---
 
-## Chapter 15 — Your tools
+## Chapter 15 — Making it work on YOUR voice (the real-voice upgrade)
+
+### 15.1 The problem, in plain words
+Imagine a music teacher who has only ever heard students sing in one quiet, perfect classroom. Now you sing to her over a cheap phone in a noisy room. She knows singing, but everything *sounds* different, so she misjudges you.
+
+That happened to your app. It was trained on studio recordings, so on a laptop microphone:
+
+- **Normal speech came out as "sad".** A laptop mic records you more quietly and with less bass and treble. The model leans on loudness (Chapter 8.6), and quiet + flat is what sad sounds like in the studio data.
+- **Excited shouting came out as "angry".** There is no "excited" label at all, and excitement and anger share exactly what the features measure best: high pitch, loudness, fast speech. Those cues say *how much energy* a voice has, not whether it is happy or upset.
+
+This is **domain shift** again (Chapter 9), but now between the studio and *your* microphone instead of between two datasets. You built three fixes, and tested each one on speakers the models had never heard.
+
+### 15.2 Fix 1: train on fake microphones (data augmentation)
+**The basic idea.** If you want a child to recognise a cat in any photo, you show cats in many lights, angles and blurs. Showing the *same* example in many disguises is called **data augmentation**. The model learns what stays the same (the emotion) and stops relying on what changes (the microphone).
+
+**What you did.** You downloaded the original audio again and checked that it gives exactly the stored features (it did). Then every training clip got one random "fake microphone and room" (`src/augment.py`):
+
+| Disguise | What it imitates | Range used |
+|---|---|---|
+| **Band-pass filter** | a cheap mic cannot hear very low or very high sounds | keep from 60–400 Hz up to 3–8 kHz |
+| **Echo** | the sound bouncing around a room | echo lasting about 0.15–0.8 s, on 70% of clips |
+| **Volume change** | sitting nearer or further from the mic | −20 to +6 dB |
+| **Background noise** | fans, traffic, hiss | **SNR** 10–40 dB on 85% of clips |
+
+**SNR** (signal-to-noise ratio) says how much louder your voice is than the noise. 40 dB = noise barely there; 10 dB = noise clearly audible.
+
+The model was then trained on every clip **twice**: as recorded, and in its disguise. Same recipe, same settings; only the training data changed.
+
+**How you tested it fairly.** Three *fixed* fake conditions were applied to the held-out (fold-0) speakers: a **laptop**, a **phone** (narrow 300–3400 Hz band) and a **far, echoey room**. The far room is deliberately harder than anything in training (longer echo, quieter, a different noise type), to check the model did not just memorise the training disguises.
+
+**Results** (UAR on new speakers):
+
+| | Studio | Laptop | Phone | Far room |
+|---|---|---|---|---|
+| CREMA-D speakers, old model | 71.6 | 64.0 | 60.3 | 33.4 |
+| CREMA-D speakers, robust model | 71.9 | **67.6** | **68.0** | **48.8** |
+| RAVDESS speakers, old model | 69.2 | 57.5 | 66.3 | 29.6 |
+| RAVDESS speakers, robust model | 71.3 | 62.5 | 69.6 | **47.9** |
+
+Better under every fake microphone, and **no loss on studio audio**. On CREMA-D speakers with the laptop mic, neutral speech called "sad" fell from 17% to 4%. The app now uses this model for your uploads and recordings.
+
+**Honest limits:** the microphones are simulated; real phones also do things like automatic volume control and noise suppression. On the 5 RAVDESS test speakers only the far-room gain is statistically clear.
+
+### 15.3 Fix 2: calibrate to your voice (speaker normalisation)
+**The basic idea.** Your best friend can tell you are upset even on a bad phone line, because she compares your voice with *your* normal voice, not with an "average person". The app now does the same.
+
+**What you did** (`src/calibration.py`):
+
+1. You say three calm sentences. Their average features are your **baseline**: "my normal voice on this microphone".
+2. Every new recording is turned into **recording − baseline**: "how is this different from my normal voice?". A microphone that makes everything quieter makes the baseline quieter too, so the difference cancels the microphone out.
+3. A second model, the **relative model**, was trained on exactly such differences for every training speaker.
+4. The final answer combines the original model and the relative model with a **geometric mean**: multiply their scores for each emotion, take the square root, and rescale so the six scores add up to 100%. An emotion only wins if *both* models find it likely. Example: if one model says angry 90% / happy 10% and the other says angry 20% / happy 80%, then angry gets √(0.9 × 0.2) = 0.42 and happy √(0.1 × 0.8) = 0.28, so angry still wins, but only narrowly.
+
+This is the per-corpus normalisation of Chapter 9.2, done for **one speaker**.
+
+**Results** on new speakers: UAR 69 → 77% (RAVDESS), 72 → 75% (CREMA-D), and 42 → 52% when trained on RAVDESS and tested on CREMA-D.
+
+**Tip for using it:** record the calibration in the same room, with the same mic and at the same distance. In one test a calm sentence just 2 dB quieter than the calibration was still read as sad.
+
+### 15.4 Fix 3: learn from your corrections (personalisation)
+**The basic idea.** When a new friend misreads your mood and you say "no, I'm actually excited", they learn your voice. The **"Wrong answer?"** button does that.
+
+**What you did** (`src/personal.py`): your corrected recording (as a difference from your calibration) is added to the relative model's training data with a **weight of 100**, meaning it counts as much as 100 ordinary training clips. Only the last step of the model is re-trained, starting from what it already knew, so it takes seconds.
+
+**A failed first try (good viva story).** The first version also re-trained the *original* model. On new speakers, one correction then pulled **all** of that person's recordings toward the corrected emotion, because a new person's recordings sit close together, far from the training data. Accuracy dropped from 52% to 42% in one test. Teaching only the relative model (which works with differences from your normal voice) fixed it.
+
+**Results:** after 3 corrections accuracy rose by 1 to 7 points; for a model facing an unfamiliar recording style, **happy speech called angry fell from 21% to 10%** while real anger was almost never called happy (1–2%). Excitement is learned as *happy*, because there is no "excited" label.
+
+### 15.5 "Why angry and not happy?" (contrastive explanations)
+Chapter 8 explained "why angry?". But often the real question is "why angry **and not happy**?". For your Logistic Regression this has an exact answer:
+
+> contribution to "angry rather than happy" = SHAP for angry − SHAP for happy
+
+Each bar then shows how much a feature moves the **log-odds of angry over happy** (log-odds = how many times more likely one is than the other, on a log scale). In the app's **Why** tab, the "Compared with" box starts on the runner-up emotion. If loudness pushes both angry and happy up equally, it cancels out, and what remains is what *separates* the two, such as voice quality or pitch movement.
+
+### 15.6 How you kept it honest
+- **Every** test used speakers the models had never heard (fold 0, or the other dataset).
+- Gains come with **bootstrap confidence intervals** over speakers (Chapter 9.5). Where the interval includes zero, you say so.
+- Everything is reproducible with one command each: `python -m src.voice_experiments calibration`, `corrections` or `robust`.
+- The app says when it uses the robust model, when it is calibrated and how many corrections it learned from, and it warns that a recording you just corrected proves nothing.
+
+---
+
+## Chapter 16 — Your tools
 
 | Tool | What it's for |
 |---|---|
@@ -389,7 +472,7 @@ Streamlit turns Python into a web app. Yours:
 
 ---
 
-## Chapter 16 — The whole story in 12 lines (memorise this)
+## Chapter 17 — The whole story in 13 lines (memorise this)
 
 1. **Goal:** recognise 6 acted emotions from voice, explain them, and test if both survive a new dataset.
 2. **Data:** RAVDESS (24 actors) and CREMA-D (91 actors), harmonised to 6 emotions.
@@ -402,11 +485,12 @@ Streamlit turns Python into a web app. Yours:
 9. **Across corpora:** everyone drops 20–35 points. H1 depends on direction: **training diversity matters most**. Per-corpus normalisation helps.
 10. **Explanation stability:** 0.78 > 0.63 > 0.50 > 0 (H2 ✔); WavLM least stable; groups stable.
 11. **Stable-core selection:** didn't reliably help (H3 inconclusive). Errors: neutral collapses, quiet → sad, human-hard = model-hard.
-12. **App:** real model, explanation, robustness test, honest warnings.
+12. **App:** real model, explanation (including "why X and not Y?"), robustness test, honest warnings.
+13. **Real voices:** microphone-robust training (+3 to +18 points on fake mics), calibration to your voice (69 → 77% / 72 → 75%), and learning from corrections (happy-called-angry 21% → 10%), all tested on new speakers.
 
 ---
 
-## Chapter 17 — Test yourself
+## Chapter 18 — Test yourself
 
 Answer without looking, then check the chapter in brackets.
 
@@ -426,5 +510,11 @@ Answer without looking, then check the chapter in brackets.
 14. Why does *fearful* get confused with *sad*? *(Ch 7, 8.6)*
 15. Why no KNN? Give two reasons. *(Ch 6.5)*
 16. How does the app avoid misleading users? *(Ch 14)*
+17. Why did a laptop microphone make normal speech sound "sad" to the model? *(Ch 15.1)*
+18. What is data augmentation, and why was the far-room test made harder than training? *(Ch 15.2)*
+19. How does calibration cancel out the microphone? *(Ch 15.3)*
+20. Why does the geometric mean need both models to agree? Work through the example. *(Ch 15.3)*
+21. Why did re-training the original model on corrections backfire? *(Ch 15.4)*
+22. How is "why angry and not happy?" computed exactly? *(Ch 15.5)*
 
-Next step after this guide: `report/10_viva_preparation.md` (47 examiner-style questions).
+Next step after this guide: `report/10_viva_preparation.md` (54 examiner-style questions).

@@ -206,7 +206,39 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 
 ---
 
-## D. Quick-fire numbers to memorise
+## D. The real-voice upgrade (calibration, corrections, robust training, contrastive explanations)
+
+**D1. Your app said "sad" for normal laptop speech. Why? (PS)**
+- *Short:* Domain shift. The model was trained on studio audio and leans on loudness; a laptop microphone records quieter and band-limited speech, which resembles the studio *sad* clips.
+- *Deeper:* Phase 7 showed loudness and sound level drive the CREMA-D model; Phase 8 measured feature shifts between corpora. On simulated laptop audio the studio model called neutral speech sad in 17% (CREMA-D speakers) to 55% (RAVDESS speakers) of cases (`report/09_simulation.md` §9).
+
+**D2. How does "calibrate to my voice" work, and is it cheating? (PY)**
+- *Short:* Three calm recordings form a baseline; a second model judges each clip as *clip − baseline*; the answer is the geometric mean of both models. It uses no labels from the user, so it is not cheating; it is per-corpus normalisation done for one speaker.
+- *Deeper:* Held-out speakers: 69.3 → 76.6 (RAVDESS), 71.8 → 74.9 (CREMA-D); RAVDESS → CREMA-D 42.3 → 51.7. Mean of 10 random baselines; baseline clips removed from the test set. The geometric mean beat the arithmetic mean in 3 of 4 tests and needs both models to agree.
+
+**D3. What does "Wrong answer? I was …" do, and what went wrong at first? (PR)**
+- *Short:* The corrected clip is added, with weight 100, to the relative model's training data and only the last layer is re-fitted in seconds. The first version also re-fitted the original model, which pulled all of a new speaker's clips toward the corrected emotion (52 → 42% in one test), so it was rejected.
+- *Deeper:* Simulated users correcting each mistake: after 3 corrections +7.2 (RAVDESS), +2.3 (CREMA-D), +4.9 (CREMA-D → RAVDESS) and +1.0 (RAVDESS → CREMA-D) points; happy called angry 21% → 10% in CREMA-D → RAVDESS. Weight chosen on fold-1 speakers. Corrections stay in the browser session.
+
+**D4. Can your model detect excitement? (all)**
+- *Short:* No. There is no "excited" class in either corpus. Excitement and anger share high pitch, loudness and fast speech; energy is easy to hear, positivity much harder. Through corrections, a user's excitement is learned as *happy*.
+- *Deeper:* The contrastive explanation "why angry and not happy?" shows which features separate the two for a given clip; the shared energy cues cancel out in it.
+
+**D5. What is the microphone-robust model, and how do you know it is not just memorising your simulation? (PS)**
+- *Short:* The same recipe trained on every clip twice: as recorded and through a random simulated microphone and room. It was tested on held-out speakers under three fixed conditions, one of them (far room) partly outside the training ranges.
+- *Deeper:* Gains with 95% speaker-bootstrap CIs: CREMA-D laptop +3.7 [1.6, 5.6], phone +7.8 [4.3, 11.1], far room +15.4 [10.5, 20.2]; RAVDESS far room +18.3 [12.1, 27.1]. No loss on studio audio (+0.2, +2.1). Honest caveats: simulated, not real microphones; the RAVDESS laptop and phone CIs include zero; across corpora on clean audio it was slightly, not significantly, worse.
+
+**D6. How do you compute "why angry and not happy?" (PY)**
+- *Short:* SHAP for angry minus SHAP for happy. For a multinomial Logistic Regression this is exactly each feature's contribution to log P(angry) − log P(happy), relative to the average training clip.
+- *Deeper:* log-odds of k over j = (w_k − w_j)·z + (b_k − b_j); subtracting the same quantity for the average clip gives Σ (w_k,i − w_j,i)(z_i − z̄_i), which is the difference of the two classes' linear SHAP values. Features that push both emotions equally (shared energy cues) cancel.
+
+**D7. Can someone reproduce these numbers? (PR)**
+- *Short:* Yes: `python -m src.voice_experiments calibration`, `corrections` and `robust` write `results/phase9/voice_*.csv`. The simulated-microphone features come from `python -m src.robust_features`.
+- *Deeper:* The original audio was downloaded again from the official sources; re-extracted features matched the stored ones exactly (eGeMAPS within 10⁻⁹, WavLM correlation 1.00000).
+
+---
+
+## E. Quick-fire numbers to memorise
 
 | Fact | Value |
 |---|---|
@@ -223,3 +255,6 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 | SHAP vs permutation | 0.79 · 0.96 |
 | Human audio-only agreement | 63% RAVDESS · 41.6% CREMA-D |
 | Main confusion | fearful → sad (13.5% · 17.3%) |
+| Calibration (held-out) | 69.3 → 76.6 RAVDESS · 71.8 → 74.9 CREMA-D |
+| Robust model, far room | 29.6 → 47.9 RAVDESS · 33.4 → 48.8 CREMA-D |
+| Corrections (3) | happy called angry 21% → 10% (CREMA-D → RAVDESS) |

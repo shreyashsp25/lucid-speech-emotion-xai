@@ -7,8 +7,13 @@ Team Lucid · `app/streamlit_app.py` (Streamlit + Plotly) · helpers in `src/app
 ```bash
 source .venv/bin/activate
 python -m src.app_assets                         # once, ~3–5 min: builds the held-out demo model
+python -m src.robust_features train_aug          # once, ~40–60 min: simulated-microphone copies (section 9)
+python -m src.app_assets robust                  # once, ~20 s: builds the microphone-robust model
 streamlit run app/streamlit_app.py               # opens http://localhost:8501
 ```
+
+The two robust steps are optional: without them, uploads and recordings use the studio model and
+the app says so.
 
 Needs `models/final_models.joblib` (from `notebooks/07_final_model.ipynb`), the cached features in `data/processed/` and the audio in `data/raw/` (for dataset examples). The first analysis takes about 20 s while openSMILE and WavLM load; after that each clip takes a few seconds.
 
@@ -19,7 +24,7 @@ Needs `models/final_models.joblib` (from `notebooks/07_final_model.ipynb`), the 
 | Page | Content | Source |
 |---|---|---|
 | **Analyse a voice** | Input: dataset clip (held-out speaker), file upload (WAV/FLAC/OGG/MP3) or microphone. Console with prediction, score ring, six score bars and waveform; three trust notes (recording conditions and calibration, typicality, second opinion); eight tabs (below) | live, real models |
-| · Why | Exact linear SHAP of the eGeMAPS model for any chosen emotion ("why / why not"); plain-language summary; net evidence per feature group; share of the fusion model's evidence from eGeMAPS vs WavLM | live |
+| · Why | Exact linear SHAP of the eGeMAPS model for any chosen emotion; **"Why X and not Y?"**: the difference of two emotions' SHAP values, which is exactly how much each feature moves the log-odds of X over Y (starts on the runner-up emotion); plain-language summary; net evidence per feature group; share of the fusion model's evidence from eGeMAPS vs WavLM | live |
 | · Emotion compass | The six scores placed on a pleasantness × energy circle; the clip's score-weighted position; after a stress test, every modified copy is added so the drift is visible | live |
 | · What-if studio | Eight sliders (loudness, sound level, loudness attack, pitch, pitch movement, HNR, alpha ratio, speech rate) shift features in training standard deviations; the eGeMAPS model is recomputed exactly; "smallest single change" search that would turn the clip into another emotion | live, exact (linear model) |
 | · Two-dataset lens | The same clip judged by three eGeMAPS models trained on RAVDESS only, CREMA-D only and both (fold-0 speakers always held out), each with its top three reasons: the Phase 8 cross-corpus effect on one clip | live, trained once per session |
@@ -53,6 +58,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 
 ## 5. Testing done
 
+- Robust model and contrastive explanation (October 2026): in a headless browser with the real models, an uploaded recording went to the microphone-robust model (console tag and trust note shown), and the Why tab's "Compared with" box produced "Why happy and not disgust?" in both the plain and the calibrated view. No errors.
 - Corrections (October 2026): in a headless browser, with the real models, a correction was taught after calibrating, the next upload used the personal model, "Forget corrections" restored the shared model, and without calibration the panel asks the user to calibrate first. No errors.
 - Calibration (October 2026): both flows were run in a headless browser with the real models and real WavLM: a held-out RAVDESS clip with "Calibrate to this speaker" switched on, and an uploaded file after three calibration recordings were uploaded in Step 1 (simulated-microphone happy clip: happy 86% without calibration, happy 99% with it). No errors.
 - October 2026 redesign: every page and all eight Analyse tabs were run in a headless browser on a test copy with the real saved models, real eGeMAPS features, real held-out RAVDESS and CREMA-D clips and the real `microsoft/wavlm-base-plus`; no errors. Checked: dataset clip, file upload, stress test (compass drift appears), what-if sliders, timeline, lens, a 400-pixel-wide phone layout. Example: a held-out RAVDESS neutral clip was called sad by the main model; in the two-dataset lens the RAVDESS-only model called it neutral while the CREMA-D-only and pooled models said sad.
@@ -62,7 +68,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 
 ## 6. Live-demo plan (for the final assessment)
 
-1. *Dataset clip* → CREMA-D → angry → show the console, then **Why** (loudness rising slope, sound level).
+1. *Dataset clip* → CREMA-D → angry → show the console, then **Why** (loudness rising slope, sound level); set **Compared with** to *happy*: "why angry and not happy?" is the excitement question.
 2. **What-if studio** → lower loudness attack and sound level → watch the answer move; show the smallest change that turns it sad.
 3. **Two-dataset lens** → RAVDESS → neutral: the three training sources often disagree (our research question on one clip).
 4. **Stress test** → then **Emotion compass** to show how far the copies drift.
@@ -99,18 +105,24 @@ speaker and one microphone.
   `models/` (git-ignored). Dataset clips use a relative model trained without held-out fold 0.
 
 **Evaluation (fusion, WavLM layer 7; the 3 baseline clips are removed from the test set;
-mean of 3 random baseline draws; UAR in %).**
+mean of 10 random baseline draws; UAR in %). Reproduce with `python -m src.voice_experiments
+calibration` (results/phase9/voice_calibration.csv).**
 
 | Test | Original | Relative only | Arithmetic mean | **Geometric mean (used)** |
 |---|---|---|---|---|
-| Held-out speakers, RAVDESS fold 0 | 68.3 | 76.1 | 77.4 | **77.5** |
-| Held-out speakers, CREMA-D fold 0 | 71.5 | 74.9 | 75.0 | **75.0** |
-| Train RAVDESS → test CREMA-D | 42.2 | 41.2 | 49.0 | **52.0** |
-| Train CREMA-D → test RAVDESS | 66.3 | 67.8 | 70.9 | **70.8** |
+| Held-out speakers, RAVDESS fold 0 | 69.3 | 72.3 | 76.3 | **76.6** |
+| Held-out speakers, CREMA-D fold 0 | 71.8 | 74.1 | 74.7 | **74.9** |
+| Train RAVDESS → test CREMA-D | 42.3 | 41.2 | 49.1 | **51.7** |
+| Train CREMA-D → test RAVDESS | 66.3 | 67.1 | 70.3 | **70.7** |
 
-**Simulated laptop microphone.** RAVDESS actor 9 (held out of both models) was re-recorded in
-software: 150–6000 Hz band-pass, 0.3 s room reverb, −10 dB level and noise at 30 dB SNR. The
-baseline used 3 of the actor's 4 neutral clips (all 4 choices tried); 41 test clips per choice.
+The RAVDESS fold-0 test has only 5 speakers (about 205 test clips), so its numbers move by a few
+points with the random baseline choice (a first run with 3 draws gave 68.3 → 77.5).
+
+**First microphone check (one speaker).** RAVDESS actor 9 (held out of both models) was
+re-recorded in software: 150–6000 Hz band-pass, 0.3 s room reverb, −10 dB level and noise at
+30 dB SNR. The baseline used 3 of the actor's 4 neutral clips (all 4 choices tried); 41 test
+clips per choice. This check was run before the reproducible script existed; section 9 repeats
+it on all fold-0 speakers and three simulated conditions.
 
 | Recordings | Original | Relative only | Arithmetic mean | **Geometric mean (used)** |
 |---|---|---|---|---|
@@ -124,7 +136,9 @@ better on every held-out test except the studio recordings (−1.0 point).
 
 **Honest limits.**
 
-- One speaker and one simulated microphone are not a user study; real microphones vary more.
+- Simulated microphones are not a user study; real microphones vary more. Section 9 extends the
+  test to all fold-0 speakers: with calibration the studio model rose from 57.5 to 69.7 (RAVDESS)
+  and from 64.0 to 66.1 (CREMA-D) on a simulated laptop microphone.
 - Calibration fixes the *baseline* shift, not the label set: excitement is still not an emotion
   the model knows.
 - Sad vs neutral stays the hardest pair. In a single-clip check, a neutral sentence that was
@@ -177,21 +191,23 @@ recordings sit together, far from the training data, so one correction pulled *a
 towards the corrected emotion. Relative features remove that per-speaker offset, so the final
 design teaches only the relative model.
 
-*Final design* (only the relative model learns, weight 100):
+*Final design* (only the relative model learns, weight 100). Before → after on the same clips,
+two random orders per speaker. Reproduce with `python -m src.voice_experiments corrections`
+(results/phase9/voice_corrections.csv).
 
-| Test | No corrections | 1 | 3 | 5 |
-|---|---|---|---|---|
-| Held-out speakers, RAVDESS fold 0 | 75.4 | 76.2 | 82.7 | 84.5 |
-| Held-out speakers, CREMA-D fold 0 | 74.6 | 75.8 | 76.8 | 76.6 |
-| Train RAVDESS → test CREMA-D (30 speakers) | 52.0 | 52.1 | 52.5 | 51.9 |
-| Train CREMA-D → test RAVDESS | 70.1 | 71.2 | 74.8 | 77.2 |
-| … happy called angry (CREMA-D → RAVDESS) | 21% | 17% | 10% | 12% |
-| … angry called happy (CREMA-D → RAVDESS) | 1% | 3% | 2% | 2% |
+| Test | 1 correction | 3 corrections | 5 corrections |
+|---|---|---|---|
+| Held-out speakers, RAVDESS fold 0 | 75.4 → 76.2 | 75.5 → **82.7** | 74.4 → **84.5** |
+| Held-out speakers, CREMA-D fold 0 | 74.7 → 75.6 | 74.0 → **76.3** | 72.9 → **74.9** |
+| Train RAVDESS → test CREMA-D (30 speakers) | 52.1 → 52.1 | 51.6 → 52.6 | 51.3 → 51.9 |
+| Train CREMA-D → test RAVDESS | 70.0 → 71.1 | 69.9 → **74.8** | 69.4 → **77.2** |
+| … happy called angry (CREMA-D → RAVDESS) | 21% → 17% | 21% → **10%** | 24% → **12%** |
+| … angry called happy (CREMA-D → RAVDESS) | 1% → 3% | 1% → 2% | 2% → 2% |
 
-The "no corrections" column is measured on the same clips as each column; the first value is
-shown. The CREMA-D → RAVDESS rows are the closest match to the excitement problem: a model
-meeting an unfamiliar recording style and calling happy speech angry. Three corrections halved
-that error without making real anger read as happy.
+The CREMA-D → RAVDESS rows are the closest match to the excitement problem: a model meeting an
+unfamiliar recording style and calling happy speech angry. Three corrections halved that error
+without making real anger read as happy. (The rejected first design and the weight choice were
+measured with an earlier version of the same simulation.)
 
 **Honest limits.**
 
@@ -203,9 +219,96 @@ that error without making real anger read as happy.
   The app says so: corrections show their effect on the next recordings.
 - Corrections teach *this* user's voice in *this* session; nothing is saved or shared.
 
-## 9. Limitations
+## 9. Microphone-robust training (October 2026)
+
+**Problem.** Calibration and corrections adapt to one user afterwards. The model itself had only
+ever heard studio recordings, so a new microphone or room moved every feature before any
+adaptation (Phase 8 domain shift, now on the microphone side).
+
+**Method.**
+
+- *Audio.* The original files were downloaded again from the official sources (RAVDESS from
+  Zenodo, MD5 `bc696df6…` of `Audio_Speech_Actors_01-24.zip`; CREMA-D from its GitHub
+  repository). Re-extracting 12 random clips reproduced the stored eGeMAPS features to within
+  10⁻⁹ (relative) and the WavLM features with correlation 1.00000, so the pipeline is unchanged.
+- *Simulated channels (`src/augment.py`).* Every training clip gets one random microphone and
+  room, seeded by its file name: band-pass from 60–400 Hz up to 3–8 kHz; synthetic room echo
+  (70% of clips, RT60 about 0.15–0.8 s, 20–70% wet); level change from −20 to +6 dB; white or
+  pink noise at 10–40 dB SNR (85% of clips); clipping at full scale.
+- *Fixed test conditions*, applied to the fold-0 speakers only:
+  - **laptop**: 150–6000 Hz, short echo, −10 dB, white noise at 30 dB SNR;
+  - **phone**: 300–3400 Hz, −6 dB, pink noise at 20 dB SNR;
+  - **far room**: 1 s echo, 80% wet, −24 dB, *brown* noise at 15 dB SNR. This one lies partly
+    outside the training ranges on purpose (longer echo, lower level, a noise colour never used
+    in training).
+- *Features* of every simulated clip go through the app's own extraction path
+  (`src.predict.extract_one`). The one-off extraction (`python -m src.robust_features ...`) took
+  about 0.25 s per clip on a 2-core CPU, for 8,498 training copies and 3 × 1,696 test clips.
+- *Model.* Same recipe and settings as the final model (fusion, WavLM layer 7, logistic
+  regression C = 0.01; explainer C = 1), trained on every training clip twice: as recorded and
+  through its simulated channel. Nothing about the model changes except the training data.
+
+**Evaluation** (folds 1–4 train, fold-0 speakers test; UAR in %; 95% interval of the gain from
+1,000 speaker-level bootstrap resamples). Reproduce with `python -m src.voice_experiments robust`
+(results/phase9/voice_robust.csv).
+
+![UAR on new speakers under studio and simulated recording conditions, for the studio-only model and the model trained with simulated microphones](../results/figures/p9_mic_robust.png)
+
+| Test speakers | Condition | Studio only | **+ simulated mics** | Gain [95% CI] |
+|---|---|---|---|---|
+| RAVDESS fold 0 (5) | studio | 69.2 | 71.3 | +2.1 [0.0, 5.4] |
+| | laptop | 57.5 | 62.5 | +5.0 [−1.2, 11.2] |
+| | phone | 66.3 | 69.6 | +3.3 [−7.1, 16.7] |
+| | far room | 29.6 | **47.9** | **+18.3 [12.1, 27.1]** |
+| CREMA-D fold 0 (18) | studio | 71.6 | 71.9 | +0.2 [−0.8, 1.2] |
+| | laptop | 64.0 | **67.6** | **+3.7 [1.6, 5.6]** |
+| | phone | 60.3 | **68.0** | **+7.8 [4.3, 11.1]** |
+| | far room | 33.4 | **48.8** | **+15.4 [10.5, 20.2]** |
+| Train RAVDESS → test CREMA-D | studio | 42.3 | 41.9 | −0.4 [−1.7, 0.8] |
+| Train CREMA-D → test RAVDESS | studio | 66.3 | 64.5 | −1.8 [−4.7, 1.2] |
+
+How often neutral speech was called *sad* (studio-only → robust): CREMA-D laptop 17% → 4%,
+phone 14% → 2%, far room 25% → 14%; RAVDESS laptop 55% → 50%, phone 40% → 20%, far room
+85% → 55%. In the far room, happy speech called angry fell from 30% to 6% (CREMA-D).
+
+**Together with calibration** (mean of 3 baseline draws, baseline recorded through the same
+simulated microphone):
+
+| Test speakers | Condition | Studio only + calibration | **Robust + calibration** |
+|---|---|---|---|
+| RAVDESS fold 0 | studio | 75.8 | 75.7 |
+| | laptop | 69.7 | **71.1** |
+| | phone | 66.4 | **70.6** |
+| | far room | 40.0 | 38.3 |
+| CREMA-D fold 0 | studio | 75.1 | 75.0 |
+| | laptop | 66.1 | **68.3** |
+| | phone | 65.3 | **69.0** |
+| | far room | 39.9 | **45.1** |
+
+**Decision.** The robust model is better or equal under every simulated microphone and costs
+nothing on studio audio, so the app now uses it for uploads and recordings
+(`models/final_models_robust.joblib`, built with `python -m src.app_assets robust`). Dataset clips
+keep the held-out studio model, because they are studio recordings and their numbers are the
+ones reported in Phases 6–9.
+
+**Honest limits.**
+
+- All conditions are simulated. They are built to resemble cheap microphones and rooms, but a
+  real laptop, phone or room can differ in ways the simulation does not cover (automatic gain
+  control, noise suppression, compression codecs).
+- On the 5 RAVDESS test speakers only the far-room gain is clearly above zero; the laptop and
+  phone intervals include zero.
+- Across data sets on clean audio the robust model is slightly, not significantly, worse
+  (−0.4 and −1.8 points).
+- In the far room, calibration did not help the robust model (RAVDESS 47.9 without, 38.3 with).
+  The relative model was trained on studio audio only; heavy echo blurs the differences it
+  relies on. Training a relative model on simulated channels needs each speaker's clips to share
+  one channel, which our per-clip augmentation does not provide (future work).
+
+## 10. Limitations
 
 - Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7) and correcting its mistakes (section 8) reduce but do not remove this.
+- Microphone robustness was tested on simulated conditions only (section 9).
 - The six emotions are acted categories; excitement, boredom and many everyday feelings are not among them.
 - The explanation is for the eGeMAPS model; the fusion model's WavLM part (most of its evidence) has no human-readable names, which the app shows explicitly as the eGeMAPS vs WavLM evidence share.
 - Runs locally only (needs the trained model, features and audio). It is a research demo, not a product.

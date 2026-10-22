@@ -28,6 +28,7 @@ import streamlit as st
 from src.audio import load_audio, TARGET_SR
 from src.models import CLASSES
 from src.predict import BUNDLE_PATH, predict_features, extract_one
+ROBUST_PATH = BUNDLE_PATH.parent / "final_models_robust.joblib"   # built by: python -m src.app_assets robust
 from src import app_utils as U
 from src import studio as S
 from src import calibration as K
@@ -284,6 +285,11 @@ def wave_from_bytes(raw: bytes, suffix: str):
     return y if len(y) >= 0.3 * TARGET_SR else None
 
 
+def user_model_path() -> Path:
+    """Own recordings go to the microphone-robust model when it has been built (src/app_assets.py)."""
+    return ROBUST_PATH if ROBUST_PATH.exists() else BUNDLE_PATH
+
+
 CALIB_SENTENCES = ["Kids are talking by the door.", "Dogs are sitting by the door.", "It's eleven o'clock."]
 
 
@@ -390,12 +396,12 @@ def get_input():
         if up is None:
             st.info("Upload a short recording to analyse it.")
             return None
-        return up.getvalue(), None, None, None, BUNDLE_PATH, True, Path(up.name).suffix.lower(), base, base_desc
+        return up.getvalue(), None, None, None, user_model_path(), True, Path(up.name).suffix.lower(), base, base_desc
     rec = st.audio_input("Step 2: record one sentence with an emotion, for example “Kids are talking by the door”")
     if rec is None:
         st.info("Press the microphone, say one sentence with an emotion, then press stop.")
         return None
-    return rec.getvalue(), None, None, None, BUNDLE_PATH, True, ".wav", base, base_desc
+    return rec.getvalue(), None, None, None, user_model_path(), True, ".wav", base, base_desc
 
 
 def page_analyse():
@@ -459,6 +465,8 @@ def page_analyse():
                     f'<span class="tag bad">actor performed {truth}</span>')
     if cal is not None:
         tags.append('<span class="tag good">calibrated to ' + ("your voice" if row is None else "this speaker") + '</span>')
+    if bundle.get("robust"):
+        tags.append('<span class="tag good">microphone-robust model</span>')
     if n_teach:
         tags.append(f'<span class="tag good">learned from {n_teach} correction{"s" if n_teach != 1 else ""}</span>')
         if clip_id in st.session_state.get("teach", {}):
@@ -487,21 +495,35 @@ def page_analyse():
     lo, hi, ref = ood_reference()
     n_out = int(((feats["egemaps"] < lo) | (feats["egemaps"] > hi)).sum())
     rank = float((ref < n_out).mean() * 100)
+    robust = bool(bundle.get("robust"))
+    taught = (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
+              "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was called "
+              "angry (21% to 10%)." if n_teach else "")
     if cal is not None and out_of_domain:
         n1 = ('', "Calibrated to your voice",
-              f"This recording is compared with {base_desc}. On a simulated laptop microphone, calibration raised "
-              "accuracy (UAR) from 38% to 66% in our tests. Still read the score as approximate."
-              + (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
-                 "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was called "
-                 "angry (21% to 10%)." if n_teach else ""))
+              f"This recording is compared with {base_desc}"
+              + (" and judged by the microphone-robust model. On simulated laptop and phone microphones, this "
+                 "combination scored 68 to 71% UAR on new speakers, against 57 to 66% for the studio model alone."
+                 if robust else
+                 ". On a simulated laptop microphone, calibration raised UAR from 58% to 70% (RAVDESS speakers) in "
+                 "our tests.")
+              + " Still read the score as approximate." + taught)
     elif cal is not None:
         n1 = ('', "Calibrated to this speaker",
-              f"Compared with {base_desc}. On held-out speakers, calibration raised UAR from 68% to 78% (RAVDESS) "
+              f"Compared with {base_desc}. On held-out speakers, calibration raised UAR from 69% to 77% (RAVDESS) "
               "and from 72% to 75% (CREMA-D) in our tests.")
+    elif out_of_domain and robust:
+        n1 = ('caution', "Different recording conditions",
+              "Judged by the microphone-robust model, trained on every clip twice: as recorded and through a "
+              "simulated microphone and room. On simulated laptop, phone and far-room recordings it scored 3 to "
+              "18 points higher, and called neutral speech sad far less often (17% to 4% for CREMA-D speakers on "
+              "a simulated laptop microphone). Calibrate to your voice "
+              "(step 1) for a further gain on laptop and phone microphones.")
     elif out_of_domain:
         n1 = ('caution', "Different recording conditions",
               "Your microphone and room differ from the training studios, and the model leans on loudness, so normal "
-              "speech often reads as sad. Calibrate to your voice (step 1) to fix most of this.")
+              "speech often reads as sad. Calibrate to your voice (step 1), and build the microphone-robust model "
+              "once with `python -m src.app_assets robust`.")
     else:
         n1 = ('', "Same recording style, new speaker",
               f"On clips like this the score is honest: calibration error {e6.get('ravdess_fusion', 0.025):.3f} "
@@ -525,25 +547,37 @@ def page_analyse():
     # ---------------- why ----------------
     with tabs[0]:
         train = train_egemaps()
-        k_name = st.selectbox("Explain the evidence for", CLASSES, index=CLASSES.index(label),
-                              help="Why this emotion, or why not another one?")
+        cw1, cw2 = st.columns(2)
+        k_name = cw1.selectbox("Explain the evidence for", CLASSES, index=CLASSES.index(label),
+                               help="Why this emotion, or why not another one?")
         k = CLASSES.index(k_name)
+        others = [c for c in CLASSES if c != k_name]
+        runner = str(proba.drop(k_name).idxmax())
+        vs_name = cw2.selectbox("Compared with", ["every emotion (standard SHAP)"] + others,
+                                index=1 + others.index(runner), key=f"vs_{k_name}",
+                                help="Ask 'why this emotion and not that one?'. The bars then show which voice "
+                                     "features tip the balance between exactly these two emotions. It starts on "
+                                     "the runner-up, the emotion the model nearly chose.")
+        j = CLASSES.index(vs_name) if vs_name in CLASSES else None
         if cal is not None:
             phi = K.relative_shap(cal["relative_egemaps"], relm, k)
+            if j is not None:
+                phi = phi - K.relative_shap(cal["relative_egemaps"], relm, j)
             expl = pd.DataFrame({"feature": names, "readable": [U.readable(n) for n in names],
                                  "group": [U.feature_group(n) for n in names],
                                  "value": cal["relative_egemaps"], "contribution": phi})
             expl = expl.reindex(expl["contribution"].abs().sort_values(ascending=False).index).reset_index(drop=True)
             expl["percentile"] = np.nan
-            toward = expl[expl["contribution"] > 0].head(3)
-            cues = "; ".join(f"{'higher' if r.value > 0 else 'lower'} {r.readable[0].lower() + r.readable[1:] if not r.readable[:2].isupper() else r.readable}"
-                             for r in toward.itertuples())
-            st.markdown(f"Compared with {'your' if row is None else 'this speaker’s'} normal voice, the main cues toward "
-                        f"**{k_name}** are: {cues or 'none strong'}.")
         else:
             expl = U.local_shap(feats["egemaps"], bundle, k)
+            if j is not None:
+                other = U.local_shap(feats["egemaps"], bundle, j).set_index("feature")["contribution"]
+                expl["contribution"] = expl["contribution"] - expl["feature"].map(other).values
+                expl = expl.reindex(expl["contribution"].abs().sort_values(ascending=False).index).reset_index(drop=True)
             expl["percentile"] = U.percentiles(expl["value"].values, train[list(expl["feature"])])
-            st.markdown(U.explanation_sentence(expl, k_name))
+        st.markdown(U.explanation_sentence(expl, k_name, versus=None if j is None else vs_name,
+                                           relative_to=None if cal is None else
+                                           ("your" if row is None else "this speaker’s") + " normal voice"))
         ca, cb = st.columns([1.7, 1])
         with ca:
             top_n = expl.head(12).iloc[::-1]
@@ -556,8 +590,10 @@ def page_analyse():
                               ("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>value %{customdata[0]:.3f}"
                                "<br>training percentile %{customdata[1]:.0f}<br>group %{customdata[2]}<extra></extra>")))
             fig.add_vline(x=0, line_color="gray")
-            fig.update_xaxes(title="contribution (log-odds): blue pushes toward, orange pushes away")
-            show(style(fig, 470, legend=False, title=f"The 12 voice features that mattered most for {k_name}"))
+            fig.update_xaxes(title=("contribution (log-odds): blue pushes toward, orange pushes away" if j is None else
+                                    f"log-odds of {k_name} over {vs_name}: blue favours {k_name}, orange favours {vs_name}"))
+            show(style(fig, 470, legend=False, title=(f"The 12 voice features that mattered most for {k_name}" if j is None
+                                                      else f"What tips it to {k_name} rather than {vs_name}")))
         with cb:
             g = expl.groupby("group")["contribution"].sum().reindex(list(GRP))
             fig = go.Figure(go.Bar(x=g.index, y=g.values, marker_color=[GRP[i] for i in g.index],
@@ -584,7 +620,9 @@ def page_analyse():
                     "Exact linear SHAP of the named-feature model, relative to the average training clip. ") +
                    "Correlated features (loudness and overall sound level) can get opposite signs that largely "
                    "cancel, so read them together. Feature groups are more stable than single features (Phase 8). "
-                   "SHAP shows what the model uses; it does not prove that a voice property causes an emotion.")
+                   + ("With 'Compared with', each bar is the difference between the two emotions' SHAP values: "
+                      "exactly how much that feature moves the log-odds of one emotion over the other. " if j is not None else "")
+                   + "SHAP shows what the model uses; it does not prove that a voice property causes an emotion.")
 
     # ---------------- compass ----------------
     with tabs[1]:

@@ -134,15 +134,36 @@ def describe_level(p: float) -> str:
     return "very high"
 
 
-def explanation_sentence(expl: pd.DataFrame, label: str, n: int = 3) -> str:
-    """One plain-language sentence from the top features pushing toward `label`."""
-    toward = expl[expl["contribution"] > 0].head(n)
-    if toward.empty:
-        return f"No single voice feature strongly supports '{label}'."
+def explanation_sentence(expl: pd.DataFrame, label: str, n: int = 3, versus: str | None = None,
+                         relative_to: str | None = None) -> str:
+    """
+    One plain-language sentence from the top features pushing toward `label`.
+
+    versus:       a second emotion; `expl` then holds contrastive contributions (label minus versus)
+    relative_to:  e.g. "your normal voice"; `value` then holds differences from that voice
+    """
     def lower_first(t):                      # "Loudness (mean)" -> "loudness (mean)", keep "MFCC 4"
         return t if t[:2].isupper() else t[0].lower() + t[1:]
-    parts = [f"{describe_level(r.percentile)} {lower_first(r.readable)}" for r in toward.itertuples()]
-    return f"Main voice cues toward **{label}**: " + "; ".join(parts) + "."
+
+    def describe(r):
+        if relative_to is not None:
+            return f"{'higher' if r.value > 0 else 'lower'} {lower_first(r.readable)}"
+        return f"{describe_level(r.percentile)} {lower_first(r.readable)}"
+
+    toward = expl[expl["contribution"] > 0].head(n)
+    against = expl[expl["contribution"] < 0].head(2)
+    where = f" Compared with {relative_to}," if relative_to else ""
+    if versus is None:
+        if toward.empty:
+            return f"No single voice feature strongly supports '{label}'."
+        head = f"{where} the main cues toward **{label}** are: " if relative_to else f"Main voice cues toward **{label}**: "
+        return head.strip() + " " + "; ".join(describe(r) for r in toward.itertuples()) + "."
+    text = f"**Why {label} and not {versus}?**" + (f"{where} what" if relative_to else " What")
+    text += (f" tips it toward {label}: " + "; ".join(describe(r) for r in toward.itertuples()) + "."
+             if not toward.empty else f" favours {label}: no single feature stands out.")
+    if not against.empty:
+        text += f" Pulling toward {versus}: " + "; ".join(describe(r) for r in against.itertuples()) + "."
+    return text
 
 
 # ---------------------------------------------------------------------------

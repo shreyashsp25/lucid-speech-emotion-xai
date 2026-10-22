@@ -18,7 +18,7 @@ Repository: `lucid-speech-emotion-xai` (GitHub) · Final report · October 2026
 
 Speech emotion recognition (SER) systems are usually evaluated, and explained, inside a single dataset. We ask whether a model's **accuracy** and its **SHAP explanations** remain valid when it is moved to a different corpus, and whether explanation stability can guide feature selection. Using RAVDESS (24 actors) and CREMA-D (91 actors) harmonised to six emotions, we compare interpretable eGeMAPS features (88 named acoustic descriptors) with frozen WavLM embeddings and their fusion, across Logistic Regression, RBF-SVM, LightGBM and an MLP (KNN excluded by design). All evaluation is speaker-independent; hyperparameters and WavLM layers are chosen by nested, speaker-grouped cross-validation.
 
-Within each corpus, the fusion model with Logistic Regression is best (UAR 82.2% on RAVDESS, 74.1% on CREMA-D; chance 16.7%), well calibrated (ECE ≈ 0.02), and WavLM beats eGeMAPS by 22–26 points in every fold. Random splits inflated RAVDESS UAR by up to 9.3 points. Across corpora, every model loses 20–35 points. Whether embeddings lose *relatively* more than interpretable features depends on the direction: they do when trained on the small RAVDESS (+6.1 points larger relative drop, 95% CI [3.1, 9.4]) but not when trained on the more diverse CREMA-D (−18.4 [−27.9, −8.1]). SHAP rankings are progressively less stable across resamples (Spearman 0.78), speaker groups (0.63) and corpora (0.50) for the interpretable model, and much less stable for WavLM (0.68 / 0.34 / 0.10), always far above a random baseline. Feature-group shares (Energy most informative per feature) are stable across corpora. Selecting "consistently important" features did not reliably improve transfer. Explainability also exposed a preprocessing flaw (exploding ratio features), fixed by clipping. We release an interactive demo that runs the real pipeline, explains each prediction, tests robustness, and states its own limits.
+Within each corpus, the fusion model with Logistic Regression is best (UAR 82.2% on RAVDESS, 74.1% on CREMA-D; chance 16.7%), well calibrated (ECE ≈ 0.02), and WavLM beats eGeMAPS by 22–26 points in every fold. Random splits inflated RAVDESS UAR by up to 9.3 points. Across corpora, every model loses 20–35 points. Whether embeddings lose *relatively* more than interpretable features depends on the direction: they do when trained on the small RAVDESS (+6.1 points larger relative drop, 95% CI [3.1, 9.4]) but not when trained on the more diverse CREMA-D (−18.4 [−27.9, −8.1]). SHAP rankings are progressively less stable across resamples (Spearman 0.78), speaker groups (0.63) and corpora (0.50) for the interpretable model, and much less stable for WavLM (0.68 / 0.34 / 0.10), always far above a random baseline. Feature-group shares (Energy most informative per feature) are stable across corpora. Selecting "consistently important" features did not reliably improve transfer. Explainability also exposed a preprocessing flaw (exploding ratio features), fixed by clipping. We release an interactive demo that runs the real pipeline, explains each prediction (including exact contrastive "why X and not Y" explanations), tests robustness, and states its own limits. To make it work on real voices we add three adaptations, each tested on held-out speakers: calibration to the speaker's own neutral voice (UAR 69 → 77% on RAVDESS, 72 → 75% on CREMA-D), learning from a user's corrections (happy speech called angry halved), and training on simulated microphones and rooms (+3 to +18 points under simulated laptop, phone and far-room recordings, with no loss on studio audio).
 
 **Keywords:** speech emotion recognition, explainable AI, SHAP, eGeMAPS, WavLM, cross-corpus generalisation, explanation stability, speaker independence.
 
@@ -118,6 +118,7 @@ Stated carefully, without novelty claims beyond what we verified:
 3. A test of **stability-guided feature selection** for cross-corpus transfer (negative/inconclusive result, reported as such).
 4. A documented case of **XAI used to debug** a pipeline (exploding ratio features).
 5. An **interactive research demo** that runs the real pipeline, explains predictions, simulates perturbations, and reports calibration and typicality.
+6. Three **tested adaptations for real voices** (speaker calibration, user corrections, simulated-microphone training) and exact **contrastive explanations** for a linear model, all reproducible with `src/voice_experiments.py`.
 
 ## 8. Datasets
 
@@ -344,6 +345,30 @@ One significant gain, four significant losses, seven differences indistinguishab
 
 The final system is LogReg on fusion features (WavLM layer chosen by inner CV on all data: **layer 7**, C = 0.01), trained on all 8,498 clips of 115 speakers, plus a LogReg on eGeMAPS (C = 1) used for explanation. The same recipe, tested with fold-0 speakers held out, scored **72.5% UAR on RAVDESS** (Phase 6 single-corpus model on the same speakers: 75.0%) and **72.3% on CREMA-D** (71.5%). Pooling cost RAVDESS, which is outnumbered 7 : 1, about 2.5 points, in exchange for a model that has heard both recording styles.
 
+### 14.9 Extension: from studio clips to real voices
+
+In use, the demo called normal laptop-microphone speech *sad* and excited shouting *angry*: the domain shift of E2, now between a studio and a user's microphone. Three adaptations were added and tested on speakers the models never heard (fold-0 speakers, or the other corpus). Details in `report/09_simulation.md` (sections 7–9); every number below is reproduced by `python -m src.voice_experiments`.
+
+**Calibration to the speaker's neutral voice.** A second model is trained on each clip *minus the mean of three neutral clips of the same speaker*; the answer is the geometric mean of the original and this relative model. This is per-corpus normalisation (E2) done for one speaker.
+
+| Test (UAR %) | Original | Calibrated |
+|---|---|---|
+| Held-out speakers, RAVDESS / CREMA-D | 69.3 / 71.8 | **76.6 / 74.9** |
+| RAVDESS → CREMA-D / CREMA-D → RAVDESS | 42.3 / 66.3 | **51.7 / 70.7** |
+
+**Learning from corrections.** When the user says what they really felt, the clip (relative to their calibration) is added to the relative model with weight 100 and only the final layer is re-fitted. Simulated users correcting each mistake gained, after three corrections, +7.2 (RAVDESS), +2.3 (CREMA-D), +4.9 (CREMA-D → RAVDESS) and +1.0 (RAVDESS → CREMA-D) points; in CREMA-D → RAVDESS, happy speech called angry fell from 21% to 10%. Re-fitting the original model as well was rejected: one correction pulled all of a new speaker's clips towards the corrected emotion (52 → 42% in RAVDESS → CREMA-D).
+
+**Training on simulated microphones.** The original audio was downloaded again (re-extracted features matched the stored ones exactly) and every training clip was passed once through a random simulated microphone and room (band limits, echo, level, noise). The same recipe trained on both copies was tested on fold-0 speakers under three fixed conditions; the far-room condition lies partly outside the training ranges.
+
+| Fold-0 speakers (UAR %) | Studio | Laptop | Phone | Far room |
+|---|---|---|---|---|
+| RAVDESS, studio-only model | 69.2 | 57.5 | 66.3 | 29.6 |
+| RAVDESS, + simulated mics | 71.3 | 62.5 | 69.6 | **47.9** |
+| CREMA-D, studio-only model | 71.6 | 64.0 | 60.3 | 33.4 |
+| CREMA-D, + simulated mics | 71.9 | **67.6** | **68.0** | **48.8** |
+
+Bold gains have speaker-bootstrap 95% intervals above zero (CREMA-D laptop +3.7 [1.6, 5.6], phone +7.8 [4.3, 11.1], far room +15.4 [10.5, 20.2]; RAVDESS far room +18.3 [12.1, 27.1]). Neutral speech called sad fell from 17% to 4% (CREMA-D, laptop). Across corpora on clean audio the robust model was slightly, not significantly, worse (−0.4, −1.8). The demo uses it for uploads and recordings.
+
 ## 15. Comparison with published work
 
 Numbers from other papers use different protocols; comparisons are indicative only.
@@ -404,7 +429,8 @@ A Streamlit application (`app/streamlit_app.py`, `report/09_simulation.md`) runs
 
 - **Input:** held-out dataset clips (speakers the demo model never heard), file upload, or microphone.
 - **Output:** the predicted emotion in a console panel with a score ring, all six class scores, the clip's waveform, and three trust notes (calibration in-domain or an explicit out-of-domain warning for uploads; a typicality rank against the 8,498 training clips; agreement between the fusion and eGeMAPS models).
-- **Explanation:** exact linear SHAP for any chosen emotion, a plain-language summary, net evidence per feature group, and the share of the fusion model's evidence that comes from named features vs WavLM.
+- **Explanation:** exact linear SHAP for any chosen emotion, and **contrastive** "why X and not Y?" explanations (the difference of two classes' SHAP values, which for a linear model is exactly each feature's contribution to the log-odds of X over Y); a plain-language summary, net evidence per feature group, and the share of the fusion model's evidence that comes from named features vs WavLM.
+- **Real voices (§14.9):** recordings go to the microphone-robust model; the user can calibrate with three calm sentences and correct wrong answers ("Wrong answer? I was …"), which re-fits a personal model in seconds. Corrections stay in the browser session.
 - **Interactive tools:** an emotion compass (the six scores on a pleasantness × energy layout); a what-if studio (shift one named feature by training standard deviations and recompute the eGeMAPS model exactly, plus the smallest single change that flips the prediction); a two-dataset lens (the same clip judged by eGeMAPS models trained on RAVDESS only, CREMA-D only and both, fold-0 speakers held out); a one-second emotion timeline; and a voice-profile radar against the typical training voice of each emotion.
 - **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]); all 88 eGeMAPS features with their training percentiles.
 - **Stress test:** re-runs the pipeline on quieter/louder, pitch-shifted and noisy copies.
@@ -432,7 +458,7 @@ Pipeline parity was verified: features computed live in the app equal the stored
 - **One seed** per within-corpus configuration (LogReg and SVM are deterministic; LightGBM and MLP were not repeated across seeds), and small hyperparameter grids for laptop compute. Phase 2 had planned 5 seeds.
 - With 5 folds, within-corpus differences are reported as fold consistency, not significance tests.
 - **WavLM explanations** concern unnamed dimensions; their stability says nothing about human-readable meaning.
-- The **app** is a local research demo; microphone recordings are out-of-domain and its scores for them are rough.
+- The **app** is a local research demo; microphone recordings are out-of-domain and its scores for them are rough. The adaptations of §14.9 were tested on *simulated* microphones and simulated users, not in a user study; there is no "excited" class.
 
 ## 21. Ethics
 
@@ -451,8 +477,8 @@ With speaker-independent evaluation, WavLM-based models recognise six acted emot
 1. Add a third and fourth corpus (e.g., a non-acted or non-English corpus) to test H1's direction dependence and H2 more widely.
 2. Repeat within-corpus runs over several seeds and use more folds for formal paired tests.
 3. Probe WavLM dimensions with eGeMAPS features (as in [5]) to give the embedding explanations names.
-4. Test speaker-level or utterance-level normalisation and domain-adversarial training for transfer.
-5. Quantify the robustness simulation over all held-out clips (gain, pitch, noise) as a formal experiment.
+4. Speaker-level normalisation and simulated-microphone training were tested for the demo (§14.9); test them, and domain-adversarial training, as cross-corpus methods in E2, and train the relative model on per-speaker simulated channels.
+5. Validate the simulated microphones with real laptop and phone recordings of consenting speakers (a small user study).
 6. Use soft (listener-distribution) labels for CREMA-D, as in [7].
 7. Calibrate scores under domain shift (e.g., temperature scaling on a small labelled target set).
 
@@ -531,7 +557,8 @@ References [1]–[10] were read in full by the team (Phase 1); [13]–[18] were 
 | Software | Python 3.11, scikit-learn 1.9.1, LightGBM 4.7.0, openSMILE 2.6.0, transformers 5.20.1, torch 2.14.1, SHAP 0.51.0, Streamlit 1.66.0 (full list: `requirements.txt`) |
 | Random seeds | folds 42; models 0 |
 | Notebooks | `01_dataset_investigation` → `02_feature_extraction` → `03_modelling` → `04_explainability` → `05_experiments` → `06_evaluation` → `07_final_model` |
-| App | `python -m src.app_assets` then `streamlit run app/streamlit_app.py` |
+| App | `python -m src.app_assets`, optionally `python -m src.robust_features train_aug` and `python -m src.app_assets robust`, then `streamlit run app/streamlit_app.py` |
+| §14.9 experiments | `python -m src.voice_experiments calibration`, `corrections`, `robust` (results in `results/phase9/voice_*.csv`) |
 | Not in the repository | audio, extracted features, trained models (regenerated by the notebooks) |
 
 ## Appendix C — Repository map
