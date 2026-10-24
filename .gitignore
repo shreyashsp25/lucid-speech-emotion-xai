@@ -20,3 +20,7 @@ models/
 # local assistant/tool folders
 .claude/
 .agents/
+
+# your own recordings and local check reports (never uploaded)
+recordings/
+selfcheck_report.txt

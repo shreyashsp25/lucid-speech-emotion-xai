@@ -104,3 +104,5 @@ What it does: predicts the emotion with the real model, explains it with exact S
 | **"Wrong answer?" corrections** | tell it what you really felt; it learns your voice in a few seconds | 3 corrections: +1 to +7 points; happy called angry 21% → 10% in an unfamiliar recording style |
 
 The model has no *excited* label: excitement is learned as *happy* through corrections. All simulated conditions are simulations, not a user study.
+
+**Something looks wrong?** Run `python -m src.selfcheck`. It replays 24 held-out clips through the same steps as the app, checks that the features computed on your computer equal the training features, and ends with a one-line verdict (also saved to `selfcheck_report.txt`). Recordings use the app's own raw-microphone recorder, which switches off the browser's automatic gain control and noise suppression.

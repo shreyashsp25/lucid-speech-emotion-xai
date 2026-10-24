@@ -33,6 +33,7 @@ from src import app_utils as U
 from src import studio as S
 from src import calibration as K
 from src import personal as PZ
+from src.recorder import raw_recorder, processing_note
 
 st.set_page_config(page_title="Lucid voice emotion lab", page_icon="〰️", layout="wide",
                    initial_sidebar_state="collapsed")
@@ -290,13 +291,25 @@ def user_model_path() -> Path:
     return ROBUST_PATH if ROBUST_PATH.exists() else BUNDLE_PATH
 
 
+def keep_copy(wav: bytes, kind: str):
+    """Save a recording to recordings/ when the user has switched that on."""
+    if not st.session_state.get("keep_copies"):
+        return
+    import time
+    folder = ROOT / "recordings"
+    folder.mkdir(exist_ok=True)
+    (folder / f"{time.strftime('%Y%m%d-%H%M%S')}_{kind}.wav").write_bytes(wav)
+
+
 CALIB_SENTENCES = ["Kids are talking by the door.", "Dogs are sitting by the door.", "It's eleven o'clock."]
 
 
 def calibration_for_speaker(row):
     """Dataset clip: baseline from up to three OTHER neutral clips of the same held-out speaker."""
-    on = st.toggle("Calibrate to this speaker's normal voice",
-                   help="Uses up to three other neutral clips of the same held-out speaker as the reference point.")
+    on = st.toggle("Calibrate to this speaker's normal voice", value=True,
+                   help="Uses up to three other neutral clips of the same held-out speaker as the reference point. "
+                        "On held-out speakers this raised UAR from 72.5% to 77.5% (RAVDESS) and from 72.3% to "
+                        "74.7% (CREMA-D). Switch it off to see the plain model.")
     if not on:
         return None, None
     ex = examples()
@@ -318,17 +331,17 @@ def calibration_for_user():
         st.markdown("Say each sentence in your **normal, calm voice**, the way you would talk to a friend. The app "
                     "then judges every recording by how it differs from *your* normal voice and *your* microphone, "
                     "instead of the recording studios it was trained in.")
-        cols = st.columns(3)
-        for i, col in enumerate(cols):
-            rec = col.audio_input(f"Normal voice {i + 1}: “{CALIB_SENTENCES[i]}”", key=f"calib_rec_{gen}_{i}")
+        for i in range(3):
+            rec = raw_recorder(f"Normal voice {i + 1}: “{CALIB_SENTENCES[i]}”", key=f"calib_rec_{gen}_{i}")
             if rec is not None:
-                sig = hash(rec.getvalue())
+                sig = rec["nonce"]
                 if store.get(f"slot{i}", (None,))[0] != sig:
-                    y = wave_from_bytes(rec.getvalue(), ".wav")
+                    y = wave_from_bytes(rec["wav"], ".wav")
                     if y is None:
-                        col.error("Too short or unreadable. Record the full sentence again.")
+                        st.error("Too short or unreadable. Record the full sentence again.")
                     else:
                         store[f"slot{i}"] = (sig, features_for(y))
+                        keep_copy(rec["wav"], f"calibration{i + 1}")
         ups = st.file_uploader("Or upload recordings of your normal voice (WAV, FLAC, OGG or MP3)",
                                type=["wav", "flac", "ogg", "mp3"], accept_multiple_files=True, key=f"calib_up_{gen}")
         for up in ups or []:
@@ -377,12 +390,16 @@ def get_input():
         if sub.empty:
             st.info("No clips of this kind are available on this computer.")
             return None
-        if "pick" not in st.session_state:
-            st.session_state.pick = 0
+        # A random clip for every dataset and emotion (the first clip is always the same speaker, actor 9,
+        # whom the held-out model hears as sad for most emotions).
+        pick_key = f"pick_{corpus}_{emo}"
+        if pick_key not in st.session_state:
+            st.session_state[pick_key] = int(np.random.randint(len(sub)))
         c3.markdown('<div style="height:1.75rem"></div>', unsafe_allow_html=True)
         if c3.button("Pick another clip", width="stretch"):
-            st.session_state.pick = int(np.random.randint(len(sub)))
-        row = sub.iloc[st.session_state.pick % len(sub)]
+            step = int(np.random.randint(1, len(sub))) if len(sub) > 1 else 0
+            st.session_state[pick_key] = (st.session_state[pick_key] + step) % len(sub)
+        row = sub.iloc[st.session_state[pick_key] % len(sub)]
         path = ROOT / row["path"]
         y, _ = load_audio(path)
         base, base_desc = calibration_for_speaker(row)
@@ -397,11 +414,21 @@ def get_input():
             st.info("Upload a short recording to analyse it.")
             return None
         return up.getvalue(), None, None, None, user_model_path(), True, Path(up.name).suffix.lower(), base, base_desc
-    rec = st.audio_input("Step 2: record one sentence with an emotion, for example “Kids are talking by the door”")
+    rec = raw_recorder("Step 2: record one sentence with an emotion, for example “Kids are talking by the door”",
+                       key="main_rec")
+    st.toggle("Keep a copy of my recordings in the project's recordings/ folder", key="keep_copies",
+              help="Off by default. Copies stay on this computer (the folder is never uploaded to GitHub) and let "
+                   "you check later what the microphone really captured.")
     if rec is None:
-        st.info("Press the microphone, say one sentence with an emotion, then press stop.")
+        st.info("Press Record, say one sentence with an emotion, then press Stop.")
         return None
-    return rec.getvalue(), None, None, None, user_model_path(), True, ".wav", base, base_desc
+    note = processing_note(rec["processing"])
+    if note:
+        st.caption(note)
+    if st.session_state.get("kept_nonce") != rec["nonce"]:
+        keep_copy(rec["wav"], "recording")
+        st.session_state["kept_nonce"] = rec["nonce"]
+    return rec["wav"], None, None, None, user_model_path(), True, ".wav", base, base_desc
 
 
 def page_analyse():
@@ -510,8 +537,8 @@ def page_analyse():
               + " Still read the score as approximate." + taught)
     elif cal is not None:
         n1 = ('', "Calibrated to this speaker",
-              f"Compared with {base_desc}. On held-out speakers, calibration raised UAR from 69% to 77% (RAVDESS) "
-              "and from 72% to 75% (CREMA-D) in our tests.")
+              f"Compared with {base_desc}. With this demo model, calibration raised UAR on the held-out speakers "
+              "from 72.5% to 77.5% (RAVDESS) and from 72.3% to 74.7% (CREMA-D).")
     elif out_of_domain and robust:
         n1 = ('caution', "Different recording conditions",
               "Judged by the microphone-robust model, trained on every clip twice: as recorded and through a "
