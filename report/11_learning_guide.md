@@ -450,6 +450,24 @@ Each bar then shows how much a feature moves the **log-odds of angry over happy*
 - Everything is reproducible with one command each: `python -m src.voice_experiments calibration`, `corrections` or `robust`.
 - The app says when it uses the robust model, when it is calibrated and how many corrections it learned from, and it warns that a recording you just corrected proves nothing.
 
+### 15.7 Fix 4: teach it your voice (speaker adaptation)
+**The problem.** Even after calibrating, the app called your calm voice "happy". Your normal voice is louder and livelier than the actors' neutral clips, so the main model heard energy.
+
+**The basic idea.** Voice typing asks you to read a few sentences first so it can learn *your* voice. This is called **speaker adaptation**, and the app now does the same: after calibrating (Step 1), you say **one sentence in each of the six emotions** (Step 2). Both models re-train their last layer with those six examples, each counting as much as 100 training clips.
+
+**Why it is safe now.** In 15.4 you rejected teaching the main model, because one correction of one emotion pulled all of a speaker's recordings towards that emotion. Six examples, one per emotion, are balanced, so nothing gets pulled one way. Single corrections still teach only the calibration model.
+
+**How you tested it fairly.** For every new (fold-0) speaker: teach one *other* clip of each emotion, then score the speaker's remaining clips, which were never used.
+
+| New speakers | Before | After teaching |
+|---|---|---|
+| RAVDESS, studio | 77.9% | **85.0%** |
+| RAVDESS, fake phone mic | 76.0% | **84.8%** |
+| CREMA-D, studio | 75.4% | **76.6%** |
+| Trained on CREMA-D, tested on RAVDESS | 68.3% | **76.5%** |
+
+Better in **all 10 tests**; in 8 the bootstrap interval stays above zero. Happy called angry in the unfamiliar style fell from 26% to 10%. On your own 12 recordings: **11 right instead of 8**. That's one speaker, so say it's a small check, not proof.
+
 ---
 
 ## Chapter 16 — Your tools
@@ -486,7 +504,7 @@ Each bar then shows how much a feature moves the **log-odds of angry over happy*
 10. **Explanation stability:** 0.78 > 0.63 > 0.50 > 0 (H2 ✔); WavLM least stable; groups stable.
 11. **Stable-core selection:** didn't reliably help (H3 inconclusive). Errors: neutral collapses, quiet → sad, human-hard = model-hard.
 12. **App:** real model, explanation (including "why X and not Y?"), robustness test, honest warnings.
-13. **Real voices:** microphone-robust training (+3 to +18 points on fake mics), calibration to your voice (69 → 77% / 72 → 75%), and learning from corrections (happy-called-angry 21% → 10%), all tested on new speakers.
+13. **Real voices:** microphone-robust training (+3 to +18 points on fake mics), calibration to your voice (69 → 77% / 72 → 75%), learning from corrections (happy-called-angry 21% → 10%) and teaching it your voice with one sentence per emotion (better in all 10 tests, e.g. 78 → 85%), all tested on new speakers.
 
 ---
 
@@ -517,4 +535,4 @@ Answer without looking, then check the chapter in brackets.
 21. Why did re-training the original model on corrections backfire? *(Ch 15.4)*
 22. How is "why angry and not happy?" computed exactly? *(Ch 15.5)*
 
-Next step after this guide: `report/10_viva_preparation.md` (54 examiner-style questions).
+Next step after this guide: `report/10_viva_preparation.md` (55 examiner-style questions).

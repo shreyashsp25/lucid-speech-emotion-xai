@@ -36,7 +36,7 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 |---|---|
 | [`report/Lucid_Final_Report.docx`](report/Lucid_Final_Report.docx) | Final report (Word); Markdown source [`report/10_final_report.md`](report/10_final_report.md) |
 | [`report/Lucid_Final_Presentation.pptx`](report/Lucid_Final_Presentation.pptx) | Final presentation, 23 slides with speaker notes; plan and demo script in [`report/10_final_presentation.md`](report/10_final_presentation.md) |
-| [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 54 examiner-style questions with answers |
+| [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 55 examiner-style questions with answers |
 | [`report/Lucid_Learning_Guide.docx`](report/Lucid_Learning_Guide.docx) | The whole project explained from the basics, with worked examples (short version: [`report/11_learning_guide.md`](report/11_learning_guide.md)) |
 | [`report/10_team_plan.md`](report/10_team_plan.md) | Ownership, shared-understanding sessions, submission checklist |
 
@@ -88,21 +88,22 @@ pip install -r requirements.txt
 source .venv/bin/activate
 python -m src.app_assets                         # once: held-out demo model (~3–5 min)
 python -m src.robust_features train_aug          # optional, once (~40–60 min): simulated-microphone copies
-python -m src.app_assets robust                  # optional, once (~20 s): microphone-robust model
+python -m src.app_assets robust                  # optional, once (~20 s): microphone-robust model + its re-fit file
 streamlit run app/streamlit_app.py
 ```
 Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).
 
 What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**.
 
-**Built for real voices, not just studio clips.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios, and excited shouting sounds *angry*. Three additions, each tested on speakers the models never heard ([`report/09_simulation.md`](report/09_simulation.md), sections 7–9; reproduce with `python -m src.voice_experiments calibration|corrections|robust`):
+**Built for real voices, not just studio clips.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios, and excited shouting sounds *angry*. Four additions, each tested on speakers the models never heard ([`report/09_simulation.md`](report/09_simulation.md), sections 7–10; reproduce with `python -m src.voice_experiments calibration|corrections|robust|enrolment`):
 
 | Addition | What it does | Tested gain |
 |---|---|---|
 | **Microphone-robust model** | trained on every clip twice: as recorded and through a random simulated microphone and room | +3 to +8 points on simulated laptop and phone mics, +15 to +18 in a far, echoey room; no loss on studio audio |
 | **Calibrate to my voice** | three calm sentences become your baseline; recordings are judged by how they differ from *your* normal voice | UAR 69 → 77% (RAVDESS) and 72 → 75% (CREMA-D) on new speakers |
 | **"Wrong answer?" corrections** | tell it what you really felt; it learns your voice in a few seconds | 3 corrections: +1 to +7 points; happy called angry 21% → 10% in an unfamiliar recording style |
+| **Teach it your voice** | say each of the six emotions once; both models adapt to your voice (speaker adaptation) | higher UAR in all 10 tests, e.g. 78 → 85% (new RAVDESS speakers), 68 → 77% (unfamiliar recording style); dataset clips 80.5 → 86.9% (RAVDESS) |
 
-The model has no *excited* label: excitement is learned as *happy* through corrections. All simulated conditions are simulations, not a user study.
+The model has no *excited* label: excitement is learned as *happy* through corrections or teaching. All simulated conditions are simulations, not a user study.
 
 **Something looks wrong?** Run `python -m src.selfcheck`. It replays 24 held-out clips through the same steps as the app, checks that the features computed on your computer equal the training features, and ends with a one-line verdict (also saved to `selfcheck_report.txt`). Recordings use the app's own raw-microphone recorder, which switches off the browser's automatic gain control and noise suppression.

@@ -29,6 +29,7 @@ from src.audio import load_audio, TARGET_SR
 from src.models import CLASSES
 from src.predict import BUNDLE_PATH, predict_features, extract_one
 ROBUST_PATH = BUNDLE_PATH.parent / "final_models_robust.joblib"   # built by: python -m src.app_assets robust
+ANCHOR_PATH = BUNDLE_PATH.parent / "final_models_robust_anchor.npz"   # re-fit file for "Teach it your voice"
 from src import app_utils as U
 from src import studio as S
 from src import calibration as K
@@ -213,35 +214,62 @@ def calib_model(layer: int, heldout_fold):
     return K.load_or_train(layer, heldout_fold)
 
 
-@st.cache_resource(show_spinner="Getting ready to learn from your corrections (first time only, about 10 seconds)…")
-def personaliser_rel(layer: int):
-    X, y, _ = K.relative_training_data(layer, None)
-    return PZ.Personaliser(calib_model(layer, None)["predictor"], X, y)
+@st.cache_resource(show_spinner="Getting ready to learn your voice (first time only, about 10 seconds)…")
+def personaliser_rel(layer: int, heldout_fold=None):
+    X, y, _ = K.relative_training_data(layer, heldout_fold)
+    return PZ.Personaliser(calib_model(layer, heldout_fold)["predictor"], X, y)
+
+
+@st.cache_resource(show_spinner="Getting ready to adapt the main model (first time only, about 20 seconds)…")
+def personaliser_abs(bundle_path: str):
+    """Re-fitter for the original model. The robust model uses its stored anchor file; the studio models
+    re-use the stored training features (all clips, or all clips except the held-out fold)."""
+    b = get_bundle(bundle_path)
+    if b.get("robust"):
+        return PZ.from_anchor(b["predictor"], ANCHOR_PATH) if ANCHOR_PATH.exists() else None
+    from src.models import load_corpus
+    L, fold = int(b["layer"]), b.get("heldout_fold")
+    X, y = [], []
+    for c in ["ravdess", "cremad"]:
+        d = load_corpus(c)
+        keep = np.ones(len(d["y"]), bool) if fold is None else np.asarray(d["folds"]) != fold
+        X.append(np.hstack([np.asarray(d["egemaps"])[keep], np.asarray(d["wavlm"])[keep][:, L]]))
+        y.append(np.asarray(d["y"])[keep])
+    return PZ.Personaliser(b["predictor"], np.vstack(X), np.concatenate(y))
 
 
 TEACH_OPTIONS = ["neutral", "happy / excited", "sad", "angry", "fearful", "disgust"]
 
 
-def personal_model(layer: int, base):
-    """The calibrated (relative) model re-fitted with the user's corrections, or None.
+def personal_model(layer: int, base, items: list, bundle_path: str, heldout_fold=None):
+    """Models re-fitted with labelled examples of one speaker's voice: (original, relative); None = unchanged.
 
-    Only the calibrated model learns: on held-out speakers, teaching the original model as well
-    pulled ALL of a new speaker's recordings towards the corrected emotion (report/09_simulation.md, section 8).
+    The calibrated (relative) model learns from any examples. The original model learns only when every
+    emotion has an example (enrollment): single corrections of one emotion pulled ALL of a new speaker's
+    recordings towards it (report/09_simulation.md, section 8); a balanced set of six did not (section 10).
     """
-    ex = st.session_state.get("teach", {})
-    if not ex or base is None:
-        return None
-    key = (tuple(sorted((k, v["label"]) for k, v in ex.items())), float(np.sum(base["egemaps"])))
-    cached = st.session_state.get("teach_fit")
-    if cached and cached[0] == key:
-        return cached[1]
-    with st.spinner(f"Learning from your {len(ex)} correction{'s' if len(ex) != 1 else ''}…"):
-        E = list(ex.values())
-        yp = np.array([CLASSES.index(e["label"]) for e in E])
+    if not items or base is None:
+        return None, None
+    key = (bundle_path, heldout_fold, tuple(sorted((k, v["label"], str(v.get("nonce", ""))) for k, v in items)),
+           float(np.sum(base["egemaps"])))
+    fits = st.session_state.setdefault("teach_fits", {})
+    if key in fits:
+        return fits[key]
+    E = [v for _, v in items]
+    labels = [e["label"] for e in E]
+    with st.spinner(f"Learning from {len(E)} example{'s' if len(E) != 1 else ''} of this voice…"):
+        yp = np.array([CLASSES.index(l) for l in labels])
         Xr = np.array([np.hstack([e["egemaps"] - base["egemaps"], e["wavlm"][layer] - base["wavlm"][layer]]) for e in E])
-        pR = personaliser_rel(layer).fit(Xr, yp)
-    st.session_state["teach_fit"] = (key, pR)
-    return pR
+        pR = personaliser_rel(layer, heldout_fold).fit(Xr, yp)
+        pA = None
+        if PZ.covers_all(labels):
+            P = personaliser_abs(bundle_path)
+            if P is not None:
+                pA = P.fit(np.array([np.hstack([e["egemaps"], e["wavlm"][layer]]) for e in E]), yp)
+    if len(fits) > 8:
+        fits.clear()
+    fits[key] = (pA, pR)
+    return pA, pR
 
 
 def teach_panel(clip_id: str, feats: dict, label: str, calibrated: bool):
@@ -272,7 +300,8 @@ def teach_panel(clip_id: str, feats: dict, label: str, calibrated: bool):
                        + ". The model has no 'excited' label, so excitement is learned as happy.")
             if c2.button("Forget corrections", width="stretch"):
                 st.session_state["teach"] = {}
-                st.session_state.pop("teach_fit", None)
+                st.session_state.pop("teach_fits", None)
+                st.session_state["enrol_gen"] = st.session_state.get("enrol_gen", 0) + 1
                 st.rerun()
 
 
@@ -302,24 +331,104 @@ def keep_copy(wav: bytes, kind: str):
 
 
 CALIB_SENTENCES = ["Kids are talking by the door.", "Dogs are sitting by the door.", "It's eleven o'clock."]
+CLOSE_MARGIN = 0.15   # top two scores closer than this: show both ("close call")
 
 
 def calibration_for_speaker(row):
-    """Dataset clip: baseline from up to three OTHER neutral clips of the same held-out speaker."""
-    on = st.toggle("Calibrate to this speaker's normal voice", value=True,
+    """Dataset clip: baseline from up to three OTHER neutral clips of the same held-out speaker, and
+    (optionally) one OTHER clip of each emotion of that speaker to adapt both models (enrollment)."""
+    st.session_state["speaker_enrol"] = []
+    c1, c2 = st.columns(2)
+    on = c1.toggle("Calibrate to this speaker's normal voice", value=True,
                    help="Uses up to three other neutral clips of the same held-out speaker as the reference point. "
-                        "On held-out speakers this raised UAR from 72.5% to 77.5% (RAVDESS) and from 72.3% to "
-                        "74.7% (CREMA-D). Switch it off to see the plain model.")
+                        "On the held-out speakers this raised UAR from 72.5% to 77.1% (RAVDESS) and from 72.3% to "
+                        "75.8% (CREMA-D). Switch it off to see the plain model.")
+    teach = c2.toggle("Teach it this speaker's voice", value=True, disabled=not on,
+                      help="Also uses one OTHER clip of each emotion from the same speaker, as a user would in "
+                           "'Teach it your voice'. Both models adapt to this speaker; the clip you are analysing is "
+                           "never one of them (report/09_simulation.md, section 10).")
     if not on:
         return None, None
     ex = examples()
-    same = ex[(ex["speaker_id"] == row["speaker_id"]) & (ex["label"] == "neutral") & (ex["file"] != row["file"])]
+    spk = ex[(ex["speaker_id"] == row["speaker_id"]) & (ex["file"] != row["file"])]
+    same = spk[spk["label"] == "neutral"]
     if same.empty:
         st.info("This speaker has no other neutral clips on this computer, so calibration is not available.")
         return None, None
     pick = same.sample(n=min(3, len(same)), random_state=0)
     feats = [features_for(load_audio(ROOT / p)[0]) for p in pick["path"]]
-    return K.baseline_from(feats), f"{len(feats)} other neutral clips of speaker {row['speaker_id']}"
+    desc = f"{len(feats)} other neutral clips of speaker {row['speaker_id']}"
+    if teach:
+        chosen = []
+        for emo in CLASSES:
+            cand = spk[spk["label"] == emo]
+            if emo == "neutral" and len(cand) > len(pick):          # prefer a neutral clip not used as baseline
+                cand = cand[~cand["file"].isin(pick["file"])]
+            if cand.empty:
+                chosen = []
+                break
+            chosen.append(cand.sample(n=1, random_state=0).iloc[0])
+        if chosen:
+            items = []
+            for r in chosen:
+                f = features_for(load_audio(ROOT / r["path"])[0])
+                items.append((r["file"], {"egemaps": f["egemaps"], "wavlm": f["wavlm"], "label": r["label"]}))
+            st.session_state["speaker_enrol"] = items
+            desc += f", adapted with one other clip of each emotion"
+        else:
+            st.info("This speaker has no other clip of every emotion on this computer, so only calibration is used.")
+    return K.baseline_from(feats), desc
+
+
+def enrollment_for_user(calibrated: bool):
+    """Own voice: one recording of each emotion. With all six, both models adapt to this voice."""
+    teach = st.session_state.setdefault("teach", {})
+    gen = st.session_state.setdefault("enrol_gen", 0)
+    have = [e for e in CLASSES if f"enrol:{e}" in teach]
+    with st.expander(f"Step 2: teach it your voice ({len(have)} of 6 emotions)", expanded=calibrated and len(have) < 6):
+        if not calibrated:
+            st.info("Calibrate first (Step 1). Teaching works on top of your calibration.")
+            return
+        st.markdown("Say **one sentence in each emotion**, for example “Kids are talking by the door”. Act it a "
+                    "little, as the actors do. When all six are in, the app adapts **its own two models** to your "
+                    "voice (speaker adaptation). On speakers it had never heard, this raised accuracy in every test "
+                    "we ran, for example from 78% to 85% UAR on new RAVDESS speakers (report, section 10).")
+        for emo in CLASSES:
+            rec = raw_recorder(f"{emo.capitalize()}", key=f"enrol_rec_{gen}_{emo}")
+            if rec is not None and teach.get(f"enrol:{emo}", {}).get("nonce") != rec["nonce"]:
+                y = wave_from_bytes(rec["wav"], ".wav")
+                if y is None:
+                    st.error(f"{emo}: too short or unreadable. Record the full sentence again.")
+                else:
+                    f = features_for(y)
+                    teach[f"enrol:{emo}"] = {"egemaps": f["egemaps"], "wavlm": f["wavlm"], "label": emo,
+                                             "nonce": rec["nonce"]}
+                    keep_copy(rec["wav"], f"teach_{emo}")
+        ups = st.file_uploader("Or upload one recording per emotion, each named after its emotion (for example "
+                               "happy.wav)", type=["wav", "flac", "ogg", "mp3"], accept_multiple_files=True,
+                               key=f"enrol_up_{gen}")
+        for up in ups or []:
+            emo = next((e for e in CLASSES if e in up.name.lower()), None)
+            if emo is None:
+                st.warning(f"{up.name}: name the file after one of the six emotions.")
+                continue
+            sig = f"up:{up.name}:{up.size}"
+            if teach.get(f"enrol:{emo}", {}).get("nonce") != sig:
+                y = wave_from_bytes(up.getvalue(), Path(up.name).suffix.lower())
+                if y is not None:
+                    f = features_for(y)
+                    teach[f"enrol:{emo}"] = {"egemaps": f["egemaps"], "wavlm": f["wavlm"], "label": emo, "nonce": sig}
+        have = [e for e in CLASSES if f"enrol:{e}" in teach]
+        missing = [e for e in CLASSES if e not in have]
+        st.caption(("Done: " + ", ".join(have) + ". " if have else "")
+                   + ("Still to record: " + ", ".join(missing) + "." if missing else
+                      "All six are in: the app is now adapted to your voice. Recordings stay in this browser session."))
+        if have and st.button("Clear my voice examples"):
+            for e in CLASSES:
+                teach.pop(f"enrol:{e}", None)
+            st.session_state.pop("teach_fits", None)
+            st.session_state["enrol_gen"] = gen + 1
+            st.rerun()
 
 
 def calibration_for_user():
@@ -405,6 +514,7 @@ def get_input():
         base, base_desc = calibration_for_speaker(row)
         return path.read_bytes(), y, row["label"], row, U.HELDOUT_PATH, False, ".wav", base, base_desc
     base, base_desc = calibration_for_user()
+    enrollment_for_user(base is not None)
     st.caption("The model knows six emotions: neutral, happy, sad, angry, fearful and disgust. Excitement is not one "
                "of them, so excited shouting usually lands on angry or happy.")
     if src_choice == "Upload a file":
@@ -414,7 +524,7 @@ def get_input():
             st.info("Upload a short recording to analyse it.")
             return None
         return up.getvalue(), None, None, None, user_model_path(), True, Path(up.name).suffix.lower(), base, base_desc
-    rec = raw_recorder("Step 2: record one sentence with an emotion, for example “Kids are talking by the door”",
+    rec = raw_recorder("Step 3: record one sentence with an emotion, for example “Kids are talking by the door”",
                        key="main_rec")
     st.toggle("Keep a copy of my recordings in the project's recordings/ folder", key="keep_copies",
               help="Off by default. Copies stay on this computer (the folder is never uploaded to GitHub) and let "
@@ -471,11 +581,18 @@ def page_analyse():
     proba = pd.Series(res["proba"]).reindex(CLASSES).astype(float)
     orig_label, orig_top = res["label"], float(proba.max())
     clip_id = f"{len(y)}:{float(np.abs(y).sum()):.4f}"
-    pR = personal_model(int(bundle["layer"]), base) if row is None else None
-    n_teach = len(st.session_state.get("teach", {})) if pR is not None else 0
+    L = int(bundle["layer"])
+    items = (list(st.session_state.get("teach", {}).items()) if row is None
+             else list(st.session_state.get("speaker_enrol") or []))
+    pA, pR = personal_model(L, base, items, str(bundle_path), None if row is None else 0)
+    n_teach = len(items) if pR is not None else 0
+    adapted = pA is not None
+    if adapted:                                   # enrollment: the original model has learned this voice too
+        proba = pd.Series(pA.predict_proba(np.hstack([feats["egemaps"], feats["wavlm"][L]])[None, :])[0],
+                          index=CLASSES).astype(float)
     cal, relm = None, None
     if base is not None:
-        relm = calib_model(int(bundle["layer"]), 0 if row is not None else None)
+        relm = calib_model(L, 0 if row is not None else None)
         rel_use = relm if pR is None else {**relm, "predictor": pR}
         cal = K.calibrated_predict(feats["egemaps"], feats["wavlm"], base, rel_use, proba.values)
         proba = pd.Series(cal["proba"]).reindex(CLASSES).astype(float)
@@ -484,22 +601,37 @@ def page_analyse():
     else:
         second_label = res["explainer_label"]
     label, top = CLASSES[int(np.argmax(proba.values))], float(proba.max())
+    ranked = proba.sort_values(ascending=False)
+    runner, runner_p = str(ranked.index[1]), float(ranked.iloc[1])
+    # Close call: on held-out speakers, when the top two scores were within 15 points (about 1 clip in 8) the
+    # top answer was right only 33-40% of the time, but the true emotion was one of the two 73-88% of the time
+    # (report/09_simulation.md, section 3). So the app names both instead of pretending to be sure.
+    close = (top - runner_p) < CLOSE_MARGIN
 
     # ---------------- console ----------------
     tags = []
+    if close:
+        tags.append(f'<span class="tag" style="border-color:#E0A526;color:#F2C14E">close call: {label} or {runner}</span>')
     if truth is not None:
-        tags.append('<span class="tag good">matches the performed emotion</span>' if truth == label else
-                    f'<span class="tag bad">actor performed {truth}</span>')
+        if truth == label:
+            tags.append('<span class="tag good">matches the performed emotion</span>')
+        elif close and truth == runner:
+            tags.append(f'<span class="tag good">actor performed {truth}, the close second</span>')
+        else:
+            tags.append(f'<span class="tag bad">actor performed {truth}</span>')
     if cal is not None:
         tags.append('<span class="tag good">calibrated to ' + ("your voice" if row is None else "this speaker") + '</span>')
     if bundle.get("robust"):
         tags.append('<span class="tag good">microphone-robust model</span>')
-    if n_teach:
+    if adapted:
+        tags.append('<span class="tag good">adapted to ' + ("your voice" if row is None else "this speaker")
+                    + f' ({n_teach} examples)</span>')
+    elif n_teach:
         tags.append(f'<span class="tag good">learned from {n_teach} correction{"s" if n_teach != 1 else ""}</span>')
-        if clip_id in st.session_state.get("teach", {}):
-            tags.append('<span class="tag">you taught it this recording</span>')
+    if row is None and clip_id in st.session_state.get("teach", {}):
+        tags.append('<span class="tag">you taught it this recording</span>')
     if cal is not None or n_teach:
-        tags.append(f'<span class="tag">{"without calibration" if not n_teach else "without calibration or corrections"}: '
+        tags.append(f'<span class="tag">{"without calibration" if not n_teach else "without calibration or teaching"}: '
                     f'{orig_label} {orig_top:.0%}</span>')
     agree = second_label == label
     tags.append(f'<span class="tag">{"named-feature model agrees" if agree else "named-feature model says " + second_label}</span>')
@@ -508,6 +640,8 @@ def page_analyse():
     st.markdown(
         f'<div class="console"><div><div class="heard">The model hears</div>'
         f'<div class="verdict"><div class="word" style="color:{EMO[label]}">{label}</div>'
+        + (f'<div style="align-self:flex-end;color:#C9CCE0;font-size:1.15rem;margin:0 .6rem .9rem 0">'
+           f'or <b style="color:{EMO[runner]}">{runner}</b> {runner_p:.0%}</div>' if close else '') +
         f'<div class="ring">{S.ring_svg(top, EMO[label], "rgba(255,255,255,.12)")}</div></div>'
         f'<div class="tags">{"".join(tags)}</div>{bars_html(proba.to_dict(), label)}</div>'
         f'<div><div class="trace">{S.waveform_svg(y, SIGNAL)}</div>'
@@ -523,9 +657,16 @@ def page_analyse():
     n_out = int(((feats["egemaps"] < lo) | (feats["egemaps"] > hi)).sum())
     rank = float((ref < n_out).mean() * 100)
     robust = bool(bundle.get("robust"))
-    taught = (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
-              "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was called "
-              "angry (21% to 10%)." if n_teach else "")
+    if adapted:
+        taught = (" Both models have also adapted to your voice from your recordings of all six emotions: on "
+                  "speakers they had never heard, this raised UAR in all 10 of our tests, for example from 78% to "
+                  "85% (RAVDESS speakers) and from 74% to 77% on a simulated laptop microphone.")
+    elif n_teach:
+        taught = (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
+                  "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was "
+                  "called angry (21% to 10%). Teach it all six emotions (step 2) for a bigger gain.")
+    else:
+        taught = ""
     if cal is not None and out_of_domain:
         n1 = ('', "Calibrated to your voice",
               f"This recording is compared with {base_desc}"
@@ -538,7 +679,9 @@ def page_analyse():
     elif cal is not None:
         n1 = ('', "Calibrated to this speaker",
               f"Compared with {base_desc}. With this demo model, calibration raised UAR on the held-out speakers "
-              "from 72.5% to 77.5% (RAVDESS) and from 72.3% to 74.7% (CREMA-D).")
+              "from 72.5% to 77.1% (RAVDESS) and from 72.3% to 75.8% (CREMA-D)."
+              + (" Teaching it the speaker's voice raised it further on the remaining clips, from 80.5% to 86.9% "
+                 "(RAVDESS) and from 76.1% to 77.0% (CREMA-D)." if adapted else ""))
     elif out_of_domain and robust:
         n1 = ('caution', "Different recording conditions",
               "Judged by the microphone-robust model, trained on every clip twice: as recorded and through a "

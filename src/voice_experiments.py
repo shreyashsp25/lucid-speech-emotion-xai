@@ -1,9 +1,11 @@
 """
-Experiments behind the voice features of the app (report/09_simulation.md, sections 7, 8 and 9).
+Experiments behind the voice features of the app (report/09_simulation.md, sections 7 to 10).
 
     python -m src.voice_experiments calibration    # section 7: calibrate to the speaker's normal voice
     python -m src.voice_experiments corrections    # section 8: learning from the user's corrections
     python -m src.voice_experiments robust         # section 9: microphone-robust training
+    python -m src.voice_experiments enrolment      # section 10: "teach it your voice", one clip per emotion
+    python -m src.voice_experiments enrolment_demo # section 10: the same in the app's "Dataset clip" mode
 
 Every test speaker is new to the models (fold 0 held out, or the other data set). Results are
 written to results/phase9/voice_<experiment>.csv. Needs the stored features (notebook 02) and,
@@ -223,9 +225,116 @@ def robust(reps: int = 3):
     return pd.DataFrame(rows)
 
 
+# ---------------------------------------------------------------------------
+# section 10: enrollment ("teach it your voice")
+# ---------------------------------------------------------------------------
+def enrolment(reps: int = 2, weight: float = WEIGHT):
+    """Each test speaker gives a calibration baseline (up to 3 neutral clips) and ONE other clip of each
+    emotion; the robust model and the relative model are re-fitted with those six (src/personal.py).
+    Scored on the speaker's remaining clips, which were never used. Compared with the app before
+    enrollment (robust model + calibration) on exactly the same clips."""
+    C, rows = corpora(), []
+    aug = {c: load_condition("train_aug", c, C[c]["meta"]["file"]) for c in C}
+    aug_fusion = {c: np.hstack([aug[c][0], aug[c][1][:, LAYER].astype(np.float32)]) for c in C}
+    for name, train, tc, ti in splits(C):
+        if "-> test cremad" in name:      # 30 CREMA-D speakers are enough for the cross-dataset check
+            keep_spk = np.random.default_rng(0).choice(np.unique(C[tc]["groups"]), 30, replace=False)
+            ti = ti[np.isin(C[tc]["groups"][ti], keep_spk)]
+        Xc = np.vstack([fusion(C[c], i) for c, i in train]); yc = np.concatenate([C[c]["y"][i] for c, i in train])
+        Xa, ya = np.vstack([Xc, np.vstack([aug_fusion[c][i] for c, i in train])]), np.r_[yc, yc]
+        A = logreg(Xa, ya)
+        PA = Personaliser(A, Xa, ya)
+        Xr_tr, yr_tr = relative_train([(fusion(C[c], i), C[c]["y"][i], C[c]["groups"][i]) for c, i in train])
+        R = logreg(Xr_tr, yr_tr)
+        PR = Personaliser(R, Xr_tr, yr_tr)
+        for cond in ["studio"] + (["laptop", "phone", "far_room"] if name.startswith("held-out") else []):
+            if cond == "studio":
+                X = fusion(C[tc], ti)
+            else:
+                e, w = load_condition(cond, tc, C[tc]["meta"]["file"].values[ti])
+                X = np.hstack([e, w[:, LAYER].astype(np.float32)])
+            y, spk = C[tc]["y"][ti], C[tc]["groups"][ti]
+            Y, S, P = [], [], {"before (app)": [], "relative model learns": [], "both models learn (used)": []}
+            for rep in range(reps):
+                rng = np.random.default_rng(200 + rep)
+                for s in np.unique(spk):
+                    idx = np.where(spk == s)[0]
+                    neu = idx[y[idx] == NEU]
+                    nb = min(K_BASE, len(neu) - 2)          # keep one neutral clip to teach and one to test
+                    if nb < 1:
+                        continue
+                    b = rng.choice(neu, nb, replace=False)
+                    rest = np.setdiff1d(idx, b)
+                    if any(not (y[rest] == k).any() for k in range(len(CLASSES))):
+                        continue
+                    enrol = np.array([rng.choice(rest[y[rest] == k]) for k in range(len(CLASSES))])
+                    test = np.setdiff1d(rest, enrol)
+                    Xr = X - X[b].mean(axis=0)
+                    A2, R2 = PA.fit(X[enrol], y[enrol], weight), PR.fit(Xr[enrol], y[enrol], weight)
+                    pa, pr = A.predict_proba(X[test]), R.predict_proba(Xr[test])
+                    P["before (app)"].append(geo(pa, pr).argmax(1))
+                    P["relative model learns"].append(geo(pa, R2.predict_proba(Xr[test])).argmax(1))
+                    P["both models learn (used)"].append(geo(A2.predict_proba(X[test]), R2.predict_proba(Xr[test])).argmax(1))
+                    Y.append(y[test]); S.append(np.full(len(test), f"{s}#{rep}"))
+            yy, ss = np.concatenate(Y), np.concatenate(S)
+            pp = {m: np.concatenate(v) for m, v in P.items()}
+            spk_only = np.array([v.split("#")[0] for v in ss])
+            lo, hi = speaker_bootstrap(yy, pp["before (app)"], pp["both models learn (used)"], spk_only)
+            for m, p in pp.items():
+                rows.append(scores(yy, p, test=name, condition=cond, method=m, gain_ci_low=lo, gain_ci_high=hi))
+            print(name, cond, {m: round(r["uar"], 1) for m, r in zip(pp, rows[-3:])}, flush=True)
+    return pd.DataFrame(rows)
+
+
+def enrolment_demo(reps: int = 2, weight: float = WEIGHT):
+    """The app's "Dataset clip" mode with the app's own saved models (models/heldout_fold0.joblib and
+    models/calibration_heldout_fold0.joblib): plain, calibrated, and calibrated + taught with one other
+    clip of each emotion of the same held-out speaker. Scored on the speaker's remaining fold-0 clips."""
+    import joblib
+    from src.app_utils import HELDOUT_PATH, MODEL_DIR
+    held = joblib.load(HELDOUT_PATH)
+    L = int(held["layer"])
+    rel = K.load_or_train(L, 0)
+    corp = corpora()
+    def fx(d, i):
+        return np.hstack([d["egemaps"][i], d["wavlm"][i][:, L].astype(np.float32)])
+    tr = {c: np.where(d["folds"] != 0)[0] for c, d in corp.items()}
+    PA = Personaliser(held["predictor"], np.vstack([fx(corp[c], tr[c]) for c in corp]),
+                      np.concatenate([corp[c]["y"][tr[c]] for c in corp]))
+    Xr_tr, yr_tr, _ = K.relative_training_data(L, 0)
+    PR = Personaliser(rel["predictor"], Xr_tr, yr_tr)
+    rows = []
+    for c, d in corp.items():
+        te = np.where(d["folds"] == 0)[0]
+        y, spk, X = d["y"], d["groups"], fx(d, np.arange(len(d["y"])))
+        for rep in range(reps):
+            rng = np.random.default_rng(300 + rep)
+            Y, P = [], {"plain": [], "calibrated": [], "calibrated + taught (used)": []}
+            for s in np.unique(spk[te]):
+                idx = te[spk[te] == s]
+                neu = idx[y[idx] == NEU]
+                b = rng.choice(neu, min(K_BASE, len(neu) - 2), replace=False)
+                rest = np.setdiff1d(idx, b)
+                enrol = np.array([rng.choice(rest[y[rest] == k]) for k in range(len(CLASSES))])
+                test = np.setdiff1d(rest, enrol)
+                base = X[b].mean(axis=0)
+                pa, pr = held["predictor"].predict_proba(X[test]), rel["predictor"].predict_proba(X[test] - base)
+                A2, R2 = PA.fit(X[enrol], y[enrol], weight), PR.fit(X[enrol] - base, y[enrol], weight)
+                P["plain"].append(pa.argmax(1))
+                P["calibrated"].append(geo(pa, pr).argmax(1))
+                P["calibrated + taught (used)"].append(geo(A2.predict_proba(X[test]), R2.predict_proba(X[test] - base)).argmax(1))
+                Y.append(y[test])
+            yy = np.concatenate(Y)
+            for m, p in P.items():
+                rows.append(scores(yy, np.concatenate(p), test=f"app dataset mode, {c}", method=m, rep=rep))
+        print(c, "done", flush=True)
+    return pd.DataFrame(rows)
+
+
 if __name__ == "__main__":
     what = sys.argv[1]
-    df = {"calibration": calibration, "corrections": corrections, "robust": robust}[what]()
+    df = {"calibration": calibration, "corrections": corrections, "robust": robust, "enrolment": enrolment,
+          "enrolment_demo": enrolment_demo}[what]()
     OUT.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUT / f"voice_{what}.csv", index=False)
     key = ["test"] + [c for c in ["condition", "model", "calibrated", "method", "corrections", "when"] if c in df]

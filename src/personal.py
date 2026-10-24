@@ -20,6 +20,14 @@ Relative features remove that per-speaker offset, so the correction teaches the 
 
 Corrections stay in the browser session; nothing is written to disk.
 Tested by simulated correction on held-out speakers in report/09_simulation.md (section 8).
+
+Enrollment (October 2026, section 10). When the user has taught at least one recording of EVERY
+emotion ("say each emotion once"), the original model is re-fitted as well. The failure above came
+from single corrections of one emotion; a balanced set of six cannot pull everything towards one
+emotion. This is speaker adaptation with a few labelled examples. On held-out speakers, one
+recording per emotion raised UAR in every test (studio, simulated laptop, phone and far room, and
+across data sets). The original model's training data, needed for the re-fit, is stored once in
+preprocessed form (an "anchor" file next to the model), so the re-fit takes a few seconds.
 """
 from __future__ import annotations
 
@@ -37,10 +45,10 @@ WEIGHT = 100         # one correction counts as much as 100 average training cli
 class Personaliser:
     """Holds a fitted pipeline's training data in its preprocessed form, ready for quick re-fits."""
 
-    def __init__(self, pipeline: Pipeline, X_train: np.ndarray, y_train: np.ndarray):
+    def __init__(self, pipeline: Pipeline, X_train: np.ndarray | None, y_train: np.ndarray, Z: np.ndarray | None = None):
         self.pipeline = pipeline
         self.pre = pipeline[:-1]
-        self.Z = self.pre.transform(X_train)
+        self.Z = self.pre.transform(X_train) if Z is None else np.asarray(Z, dtype=np.float64)
         self.y = np.asarray(y_train)
         counts = np.bincount(self.y, minlength=len(CLASSES))
         self.class_w = len(self.y) / (len(CLASSES) * np.maximum(counts, 1))   # same as class_weight="balanced"
@@ -58,3 +66,19 @@ class Personaliser:
             clf.fit(np.vstack([self.Z, self.pre.transform(np.asarray(X_personal))]),
                     np.concatenate([self.y, np.asarray(y_personal)]), sample_weight=sw)
         return Pipeline(list(self.pre.steps) + [("clf", clf)])
+
+
+def save_anchor(path, pipeline: Pipeline, X_train: np.ndarray, y_train: np.ndarray):
+    """Store a model's training data in its preprocessed form, so it can be re-fitted without the data."""
+    Z = pipeline[:-1].transform(X_train).astype(np.float16)
+    np.savez_compressed(path, Z=Z, y=np.asarray(y_train, dtype=np.int8))
+
+
+def from_anchor(pipeline: Pipeline, path) -> Personaliser:
+    d = np.load(path)
+    return Personaliser(pipeline, None, d["y"].astype(int), Z=d["Z"])
+
+
+def covers_all(labels) -> bool:
+    """True when every emotion has at least one example (enrollment: the original model may learn too)."""
+    return set(CLASSES) <= set(labels)

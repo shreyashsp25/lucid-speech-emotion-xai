@@ -8,7 +8,7 @@ Team Lucid · `app/streamlit_app.py` (Streamlit + Plotly) · helpers in `src/app
 source .venv/bin/activate
 python -m src.app_assets                         # once, ~3–5 min: builds the held-out demo model
 python -m src.robust_features train_aug          # once, ~40–60 min: simulated-microphone copies (section 9)
-python -m src.app_assets robust                  # once, ~20 s: builds the microphone-robust model
+python -m src.app_assets robust                  # once, ~20 s: microphone-robust model and its re-fit file (section 10)
 streamlit run app/streamlit_app.py               # opens http://localhost:8501
 ```
 
@@ -52,7 +52,8 @@ Every chart is drawn from the trained models or the saved result files; nothing 
 5. **Two models, disagreement shown.** The prediction comes from the fusion model; the explanation from the interpretable eGeMAPS model. When the two disagree, the app says so rather than hiding it.
 6. **Explanation caveats on screen.** Contributions are relative to the average training clip; correlated features (loudness and sound level) can get opposite signs; group-level evidence is more stable than single features (Phase 8, E3); SHAP shows association, not cause.
 7. **Raw microphone (October 2026).** Streamlit's built-in recorder asks the browser for audio with its default "voice call" processing: automatic gain control, noise suppression and echo cancellation. The model's strongest cues are loudness and voice quality (Phase 7), and no training or test condition included that processing. The app now records through its own component (`src/recorder.py`), which asks for all three to be switched off and shows on screen whether the browser obeyed. In a fake-microphone test in Chromium, the default processing raised the speech level of four RAVDESS clips by 4–9 dB; the predicted labels of those clean studio clips did not change, so the effect on real laptop recordings is not yet measured. Users can optionally keep copies of their recordings in `recordings/` (never uploaded) to check this.
-8. **Varied dataset clips (October 2026).** The dataset picker used to open the *first* clip of the chosen emotion, which is always actor 9 for RAVDESS. The held-out model calls 48% of actor 9's clips sad (accuracy 68%; other fold-0 actors 61–82%; all five 73.6%), so the demo looked as if it said "sad" for everything. It now opens a random clip for each dataset and emotion, and "Calibrate to this speaker" is on by default: with the demo model it raised UAR on the fold-0 speakers from 72.5% to 77.5% (RAVDESS; actor 9 alone 68% to 86%) and from 72.3% to 74.7% (CREMA-D). The plain answer is still shown as "without calibration".
+8. **Varied dataset clips (October 2026).** The dataset picker used to open the *first* clip of the chosen emotion, which is always actor 9 for RAVDESS. The held-out model calls 48% of actor 9's clips sad (accuracy 68%; other fold-0 actors 61–82%; all five 73.6%), so the demo looked as if it said "sad" for everything. It now opens a random clip for each dataset and emotion, and "Calibrate to this speaker" is on by default: with the demo model it raised UAR on the fold-0 speakers from 72.5% to 77.1% (RAVDESS; actor 9 alone 68% to 86%) and from 72.3% to 75.8% (CREMA-D). (A one-off check first gave 77.5% and 74.7%; the numbers above are from the full fold-0 set.) "Teach it this speaker's voice" (section 10) is also on by default. The plain answer is still shown as "without calibration or teaching".
+9. **Close calls are named (October 2026).** When the two highest scores are within 15 points, the console shows both ("close call: angry or disgust") instead of a single confident-looking answer. On the held-out fold-0 speakers this happened for 11% (RAVDESS) and 13% (CREMA-D) of clips; for those clips the top answer was right only 33% and 40% of the time, but the performed emotion was one of the two named 88% and 73% of the time (the held-out demo model, without calibration). The "unusual voice" warning was checked the same way and is not a reliable sign of a wrong answer (RAVDESS 62% correct when unusual vs 76% typical; CREMA-D 84% vs 72%), so it stays a note and does not change the score display.
 
 ## 4. Stress test: why it is scientifically useful
 
@@ -60,6 +61,8 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 
 ## 5. Testing done
 
+- Close calls (October 2026): in a headless Chromium with the real models, a team member's recording scored happy 44% and sad 36%; the console showed "happy, or sad 36%" and the tag "close call: happy or sad". Clear answers showed no such tag. No errors.
+- "Teach it your voice" (October 2026, section 10): in a headless Chromium with the real models and WavLM, a dataset clip with both switches on (tag "adapted to this speaker"), then upload mode with two neutral recordings as calibration and six recordings named after their emotions as teaching examples (Step 2 showed 6 of 6). The next three uploads, the team member's own happy, neutral and angry recordings not used for teaching, were labelled happy, neutral and angry with the tag "adapted to your voice". No errors.
 - Raw recorder and clip picker (October 2026): in a headless Chromium with a fake microphone playing RAVDESS clips, the new recorder reported automatic gain control, noise suppression and echo cancellation as off, and neutral, sad, happy and angry clips were labelled correctly (these clips come from an actor the final model was trained on, so this checks the plumbing, not accuracy). Dataset mode opened a random clip with calibration on. No errors. A self-check (`python -m src.selfcheck`) confirmed on the team laptop that live features equal the stored training features exactly.
 - Robust model and contrastive explanation (October 2026): in a headless browser with the real models, an uploaded recording went to the microphone-robust model (console tag and trust note shown), and the Why tab's "Compared with" box produced "Why happy and not disgust?" in both the plain and the calibrated view. No errors.
 - Corrections (October 2026): in a headless browser, with the real models, a correction was taught after calibrating, the next upload used the personal model, "Forget corrections" restored the shared model, and without calibration the panel asks the user to calibrate first. No errors.
@@ -75,7 +78,7 @@ Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recor
 2. **What-if studio** → lower loudness attack and sound level → watch the answer move; show the smallest change that turns it sad.
 3. **Two-dataset lens** → RAVDESS → neutral: the three training sources often disagree (our research question on one clip).
 4. **Stress test** → then **Emotion compass** to show how far the copies drift.
-5. *Record* → Step 1: three calm sentences to calibrate → Step 2: one sentence, happy then sad → compare the calibrated answer with "without calibration"; if it is wrong, use "Wrong answer?" to teach it, then record again.
+5. *Record* → Step 1: three calm sentences to calibrate → Step 2: one sentence in each of the six emotions ("teach it your voice") → Step 3: one sentence, happy then sad → compare the answer with "without calibration or teaching"; if it is still wrong, use "Wrong answer?" and record again.
 6. **New-dataset test** → H1 chart and neutral collapse (recall 0.09).
 7. **Performance** → leakage chart (why speaker-independent splits matter).
 
@@ -308,9 +311,93 @@ ones reported in Phases 6–9.
   relies on. Training a relative model on simulated channels needs each speaker's clips to share
   one channel, which our per-clip augmentation does not provide (future work).
 
-## 10. Limitations
+## 10. "Teach it your voice": speaker enrollment (October 2026)
 
-- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7) and correcting its mistakes (section 8) reduce but do not remove this.
+**Problem seen in use.** On the team's own laptop recordings the app still called a calm voice
+*happy* (96% in the plain model, about 50% even after calibration). The speaker's normal voice was
+louder and livelier than the actors' neutral clips (RAVDESS neutral is about 45 dB below full scale,
+the recordings about 35 dB), so the original model saw energy and answered happy. Calibration moves
+the reference point, but the original model still has half the say, and it had never heard this voice.
+
+**Idea.** Speaker adaptation, the standard remedy when a new speaker does not sound like the training
+speakers: let the user give one labelled example of each emotion, and adapt the model to them. Voice
+typing systems do the same when they ask you to read a few sentences first.
+
+**Method (`src/personal.py`, `app/streamlit_app.py`).**
+
+- *Step 2: teach it your voice.* After calibrating (Step 1), the user records one sentence in each of
+  the six emotions (or uploads six files named after their emotions).
+- The six recordings are added to the training data of **both** models with weight 100 each, exactly as
+  a correction is (section 8), and only the final logistic-regression layer is re-fitted, starting from
+  the shared weights.
+- Section 8 rejected teaching the original model because one correction of one emotion pulled all of a
+  new speaker's clips towards that emotion. A balanced set of six cannot do that, so the original model
+  learns only when every emotion has an example; single corrections still teach the relative model only.
+- The original (microphone-robust) model's training data is stored once in preprocessed form
+  (`models/final_models_robust_anchor.npz`, 27 MB, built by `python -m src.app_assets robust` or
+  `anchor`), so the re-fit takes a few seconds and the simulated-microphone features are not needed.
+- Dataset clips: a second switch, "Teach it this speaker's voice", does the same with one OTHER clip of
+  each emotion from the same held-out speaker. The clip being analysed is never one of them.
+
+**Evaluation.** For every test speaker: a calibration baseline (up to 3 neutral clips), then one other
+clip of each emotion to teach, then scoring on the speaker's remaining clips, which were never used.
+Two random draws per speaker. Microphone-robust model (layer 7) with calibration, before and after.
+UAR in %, 95% interval of the gain from 1,000 speaker-level bootstrap resamples. Reproduce with
+`python -m src.voice_experiments enrolment` (results/phase9/voice_enrolment.csv).
+
+| Test speakers | Condition | Before (calibrated) | **After teaching** | Gain [95% CI] |
+|---|---|---|---|---|
+| RAVDESS fold 0 (5) | studio | 77.9 | **85.0** | **+7.1 [+1.2, +13.3]** |
+|  | laptop | 73.8 | **76.9** | +3.1 [−1.0, +6.7] |
+|  | phone | 76.0 | **84.8** | **+8.8 [+1.9, +16.7]** |
+|  | far room | 38.1 | **52.1** | **+14.0 [+5.5, +23.6]** |
+| CREMA-D fold 0 (18) | studio | 75.4 | **76.6** | +1.3 [−0.1, +2.5] |
+|  | laptop | 68.5 | **70.7** | **+2.2 [+0.9, +3.4]** |
+|  | phone | 68.9 | **70.6** | **+1.7 [+0.4, +3.2]** |
+|  | far room | 45.7 | **49.7** | **+4.0 [+2.6, +5.6]** |
+| Train RAVDESS → test CREMA-D (30) | studio | 50.0 | **52.0** | **+2.0 [+0.1, +4.2]** |
+| Train CREMA-D → test RAVDESS (24) | studio | 68.3 | **76.5** | **+8.2 [+5.5, +11.4]** |
+
+Teaching raised UAR in all ten tests; in eight the interval lies above zero. Re-fitting both models was
+better than re-fitting the relative model alone in nine of the ten (results file). It also helps
+exactly where the app struggled: in the unfamiliar recording style (train CREMA-D → test RAVDESS),
+happy speech called angry fell from 26% to 10%. Unlike the rejected single-correction design, it did not
+hurt across data sets (RAVDESS → CREMA-D +2.0).
+
+**Dataset clips in the app** (the app's own held-out demo models; calibration from 3 other neutral clips
+of the speaker, plus one other clip of each emotion; mean of 2 draws):
+
+| Dataset clips of held-out speakers | Plain | Calibrated (before) | **Calibrated + taught** |
+|---|---|---|---|
+| RAVDESS fold 0 (5 speakers) | 76.7 | 80.5 | **86.9** |
+| CREMA-D fold 0 (18 speakers) | 72.5 | 76.1 | **77.0** |
+
+Reproduce with `python -m src.voice_experiments enrolment_demo` (results/phase9/voice_enrolment_demo.csv).
+The test clips here exclude each speaker's baseline and teaching clips, so the plain numbers differ
+slightly from the 72.5 and 72.3 measured on all fold-0 clips.
+
+**The team's own voice.** Twelve laptop recordings by one team member, two per emotion, recorded
+through the app. Taught with one set of six, tested on the other six, and the other way round:
+
+| | Correct (of 12) |
+|---|---|
+| App before (robust model, plain) | 5 |
+| App before, calibrated | 8 |
+| App with "Teach it your voice" | **11** |
+
+Both neutral clips, previously *happy*, became neutral. One speaker and twelve clips are a small test;
+it is reported because it is the situation the feature was built for, not as evidence of accuracy.
+
+**Honest limits.**
+
+- The user must act each emotion once; acted examples of a person's own voice are still acted.
+- With one example per emotion the gain is uncertain for small groups of speakers (RAVDESS laptop and
+  CREMA-D studio intervals include zero).
+- The examples stay in the browser session; a new session needs a new calibration and teaching.
+
+## 11. Limitations
+
+- Microphone recordings are out-of-domain; the app's scores for them are rough, as stated on screen. Calibrating to the user's voice (section 7), teaching it the user's voice (section 10) and correcting its mistakes (section 8) reduce but do not remove this.
 - Microphone robustness was tested on simulated conditions only (section 9).
 - The six emotions are acted categories; excitement, boredom and many everyday feelings are not among them.
 - The explanation is for the eGeMAPS model; the fusion model's WavLM part (most of its evidence) has no human-readable names, which the app shows explicitly as the eGeMAPS vs WavLM evidence share.

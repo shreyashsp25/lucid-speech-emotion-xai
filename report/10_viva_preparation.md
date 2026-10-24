@@ -236,6 +236,10 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 - *Short:* Yes: `python -m src.voice_experiments calibration`, `corrections` and `robust` write `results/phase9/voice_*.csv`. The simulated-microphone features come from `python -m src.robust_features`.
 - *Deeper:* The original audio was downloaded again from the official sources; re-extracted features matched the stored ones exactly (eGeMAPS within 10⁻⁹, WavLM correlation 1.00000).
 
+**D8. Your app misread your own voice. What did you do about it, and is it not just tuning to yourself? (PS)**
+- *Short:* Speaker adaptation, a standard remedy for a speaker unlike the training speakers: after calibrating, the user says each of the six emotions once, and both models re-fit their last layer with those six examples. We tested it on speakers the models never heard, not on ourselves.
+- *Deeper:* One other clip of each emotion was taught, and the speaker's remaining clips were scored. UAR rose in all ten tests (e.g. RAVDESS 77.9 → 85.0, +7.1 [1.2, 13.3]; CREMA-D → RAVDESS 68.3 → 76.5, +8.2 [5.5, 11.4]); eight intervals exclude zero. Happy called angry in CREMA-D → RAVDESS fell from 26% to 10%. Single corrections still teach only the relative model, because one correction of one emotion pulled all of a new speaker's clips towards it (section 8); a balanced set of six does not. On twelve recordings of our own voice: 11 correct against 8, reported as a small check, not as evidence (`python -m src.voice_experiments enrolment`).
+
 ---
 
 ## E. Quick-fire numbers to memorise
@@ -258,3 +262,5 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 | Calibration (held-out) | 69.3 → 76.6 RAVDESS · 71.8 → 74.9 CREMA-D |
 | Robust model, far room | 29.6 → 47.9 RAVDESS · 33.4 → 48.8 CREMA-D |
 | Corrections (3) | happy called angry 21% → 10% (CREMA-D → RAVDESS) |
+| Teach it your voice (1 clip per emotion) | RAVDESS 77.9 → 85.0; CREMA-D → RAVDESS 68.3 → 76.5; dataset clips 80.5 → 86.9 |
+| Close calls (top two within 15 points) | 11–13% of clips; top answer right 33–40%, truth among the two 73–88% |

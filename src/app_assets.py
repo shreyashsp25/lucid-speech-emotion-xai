@@ -4,6 +4,7 @@ Build the extra models the app needs.
     python -m src.app_assets            # held-out demo model (about 3-5 minutes)
     python -m src.app_assets robust     # microphone-robust model for your own recordings
                                         # (needs: python -m src.robust_features train_aug, about 1 hour once)
+    python -m src.app_assets anchor     # only the robust model's re-fit file (built by "robust" too)
 
 1. models/heldout_fold0.joblib. The final model (models/final_models.joblib) was trained on EVERY
    clip, so a dataset clip played in the app would be one the model has already heard. This
@@ -15,6 +16,10 @@ Build the extra models the app needs.
    C values), trained on every clip TWICE: as recorded, and through a random simulated microphone
    and room (src/augment.py). The app uses it for uploads and recordings. Tested in
    report/09_simulation.md, section 9.
+
+3. models/final_models_robust_anchor.npz. The robust model's training data in preprocessed form
+   (float16), so the app can re-fit it to one user's voice ("Teach it your voice": one recording
+   of each emotion, src/personal.py) without the simulated-microphone features.
 """
 from __future__ import annotations
 
@@ -30,6 +35,28 @@ from src.app_utils import HELDOUT_PATH, MODEL_DIR
 
 ARRAYS = ["y", "groups", "folds", "egemaps", "wavlm"]
 ROBUST_PATH = MODEL_DIR / "final_models_robust.joblib"
+ANCHOR_PATH = MODEL_DIR / "final_models_robust_anchor.npz"
+
+
+def robust_training_data(L: int):
+    """The robust model's training matrix: every clip as recorded and through its simulated channel."""
+    from src.voice_experiments import load_condition
+    E_clean, E_aug, F, Y = [], [], [], []
+    for c in ["ravdess", "cremad"]:
+        d = load_corpus(c)
+        e_aug, w_aug = load_condition("train_aug", c, d["meta"]["file"])
+        E_clean.append(d["egemaps"]); E_aug.append(e_aug)
+        F += [np.hstack([d["egemaps"], d["wavlm"][:, L]]), np.hstack([e_aug, w_aug[:, L]])]
+        Y += [d["y"], d["y"]]
+    return np.vstack(E_clean), np.vstack(E_aug), np.vstack(F), np.concatenate(Y)
+
+
+def build_anchor():
+    from src.personal import save_anchor
+    robust = load_final(ROBUST_PATH)
+    _, _, F, Y = robust_training_data(int(robust["layer"]))
+    save_anchor(ANCHOR_PATH, robust["predictor"], F, Y)
+    print("saved", ANCHOR_PATH, "|", len(Y), "training examples")
 
 
 def build_heldout(fold: int = 0):
@@ -51,22 +78,12 @@ def build_heldout(fold: int = 0):
 def build_robust():
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
-    from src.voice_experiments import load_condition
     final = load_final(BUNDLE_PATH)
     L = int(final["layer"])
     C_pred = final["predictor"].named_steps["clf"].C
     C_expl = final["explainer"].named_steps["clf"].C
-    E_clean, E_aug, F, Y = [], [], [], []
-    for c in ["ravdess", "cremad"]:
-        d = load_corpus(c)
-        e_aug, w_aug = load_condition("train_aug", c, d["meta"]["file"])
-        E_clean.append(d["egemaps"]); E_aug.append(e_aug)
-        F += [np.hstack([d["egemaps"], d["wavlm"][:, L]]), np.hstack([e_aug, w_aug[:, L]])]
-        Y += [d["y"], d["y"]]
-    E_clean = np.vstack(E_clean)
-    E = np.vstack([E_clean, np.vstack(E_aug)])
-    F = np.vstack(F)
-    Y = np.concatenate(Y)
+    E_clean, E_aug, F, Y = robust_training_data(L)
+    E = np.vstack([E_clean, E_aug])
     Y_eg = np.concatenate([np.concatenate([load_corpus(c)["y"] for c in ["ravdess", "cremad"]])] * 2)
 
     def fit(X, y, C):
@@ -89,10 +106,9 @@ def build_robust():
                           n_clips=int(len(Y)), date=str(date.today()))
     save_final(bundle, ROBUST_PATH)
     print("saved", ROBUST_PATH, "|", len(Y), "training examples")
+    build_anchor()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "robust":
-        build_robust()
-    else:
-        build_heldout()
+    what = sys.argv[1] if len(sys.argv) > 1 else "heldout"
+    {"heldout": build_heldout, "robust": build_robust, "anchor": build_anchor}[what]()
