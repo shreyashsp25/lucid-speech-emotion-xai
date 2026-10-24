@@ -451,6 +451,7 @@ A Streamlit application (`app/streamlit_app.py`, `report/09_simulation.md`) runs
 - **Interactive tools:** an emotion compass (the six scores on a pleasantness × energy layout); a what-if studio (shift one named feature by training standard deviations and recompute the eGeMAPS model exactly, plus the smallest single change that flips the prediction); a two-dataset lens (the same clip judged by eGeMAPS models trained on RAVDESS only, CREMA-D only and both, fold-0 speakers held out); a one-second emotion timeline; and a voice-profile radar against the typical training voice of each emotion.
 - **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]); all 88 eGeMAPS features with their training percentiles.
 - **Stress test:** re-runs the pipeline on quieter/louder, pitch-shifted and noisy copies.
+- **Close calls:** when the top two scores are within 15 points, both are shown. On held-out speakers this affected about 1 clip in 8; the top answer was then right only 33–40% of the time, but the performed emotion was one of the two 73–88% of the time.
 - **Results pages:** all Phase 6–9 results, interactive.
 
 Pipeline parity was verified: features computed live in the app equal the stored training features (maximum difference 5 × 10⁻⁵). An early fixed out-of-range warning fired on 8.4% of genuine RAVDESS training clips; it was replaced by a rank-based typicality check (warn above the 95th percentile).

@@ -366,6 +366,7 @@ Streamlit turns Python into a web app. Yours:
 - A **typicality check** ranks how unusual the clip is versus all training clips.
 - **Disagreement** between the two models is shown.
 - Probabilities are called **"model score"**, not certainty.
+- **Close calls are named:** when the top two scores are within 15 points, the app shows both ("happy, or sad 36%"). On new speakers this happens for about 1 clip in 8; then the top answer is right only 33–40% of the time, but the real emotion is one of the two 73–88% of the time.
 
 ---
 
