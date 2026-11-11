@@ -37,7 +37,7 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 | [`report/Lucid_Final_Report.docx`](report/Lucid_Final_Report.docx) | Final report (Word); Markdown source [`report/10_final_report.md`](report/10_final_report.md) |
 | [`report/Lucid_Final_Presentation.pptx`](report/Lucid_Final_Presentation.pptx) | Final presentation, 23 slides with speaker notes; plan and demo script in [`report/10_final_presentation.md`](report/10_final_presentation.md) |
 | [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 55 examiner-style questions with answers |
-| [`report/Lucid_Learning_Guide.docx`](report/Lucid_Learning_Guide.docx) | The whole project explained from the basics, with worked examples (short version: [`report/11_learning_guide.md`](report/11_learning_guide.md)) |
+| `report/Lucid from zero the whole project, one step at a time.pdf` | The whole project explained from the basics in twelve steps, with worked examples. PDF files are git-ignored, so this guide is on the team laptop only and is not in the repository |
 | [`report/10_team_plan.md`](report/10_team_plan.md) | Ownership, shared-understanding sessions, submission checklist |
 
 ## Literature survey
