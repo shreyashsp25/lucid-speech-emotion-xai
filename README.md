@@ -82,7 +82,7 @@ pip install -r requirements.txt
 
 ## Run the demo app
 
-![The Analyse page of the demo app: a held-out RAVDESS clip, the model's answer, all six scores and the clip's waveform](results/figures/p9_app_analyse.png)
+![The Analyse page of the demo app: a held-out RAVDESS clip, the model's answer, all six scores and the clip's waveform (screenshot of the earlier version, which had more tabs)](results/figures/p9_app_analyse.png)
 
 ```bash
 source .venv/bin/activate
@@ -93,7 +93,7 @@ streamlit run app/streamlit_app.py
 ```
 Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).
 
-What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and adds an **emotion compass**, a **what-if studio** (change one voice feature and watch the answer move), a **two-dataset lens** (the same clip judged by models trained on RAVDESS, CREMA-D or both), an **emotion timeline**, a **voice profile** and a **stress test**. When two emotions score within 15 points it names both ("happy, or sad 36%") instead of pretending to be sure.
+What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and shows the clip's waveform, spectrogram and pitch. The Analyse page has two tabs, **Why** and **Signal**; the earlier version with six more tools (emotion compass, what-if studio, two-dataset lens, timeline, voice profile, stress test) is kept as `app/streamlit_app_full.py`. When two emotions score within 15 points it names both ("happy, or sad 36%") instead of pretending to be sure.
 
 **Built for real voices, not just studio clips.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios, and excited shouting sounds *angry*. Four additions, each tested on speakers the models never heard ([`report/09_simulation.md`](report/09_simulation.md), sections 7–10; reproduce with `python -m src.voice_experiments calibration|corrections|robust|enrolment`):
 

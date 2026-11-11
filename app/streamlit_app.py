@@ -176,16 +176,6 @@ def train_egemaps():
 
 
 @st.cache_data(show_spinner=False)
-def labelled_table():
-    return S.labelled_egemaps()
-
-
-@st.cache_resource(show_spinner="Training the three dataset lenses (once, a few seconds)…")
-def lenses(names: tuple):
-    return S.train_lenses(labelled_table(), list(names))
-
-
-@st.cache_data(show_spinner=False)
 def ood_reference():
     """Per-clip count of features outside the 1-99% training range, for every training clip."""
     T = train_egemaps().values
@@ -543,9 +533,8 @@ def get_input():
 
 def page_analyse():
     masthead("Analyse a voice",
-             "Play a clip and the real model listens: it cleans the audio, measures 88 named voice features, "
-             "runs WavLM, predicts one of six emotions and shows exactly which parts of the voice drove that "
-             "answer. Then you can change the voice and watch the answer move.")
+             "Play a clip and the model predicts one of six emotions, then shows which parts of the voice "
+             "drove that answer.")
     if not BUNDLE_PATH.exists():
         st.error("No trained model found. Run `notebooks/07_final_model.ipynb` first.")
         return
@@ -570,10 +559,9 @@ def page_analyse():
         return
 
     st.audio(raw_bytes)
-    clip_key = (len(y), float(np.abs(y).sum()))
     bundle = get_bundle(str(bundle_path))
     names = bundle["egemaps_names"]
-    smile = warm_extractors()[0]
+    warm_extractors()
     with st.spinner("Measuring the voice and predicting…"):
         feats = features_for(y)
         res = predict_features(feats["egemaps"], feats["wavlm"], bundle)
@@ -621,20 +609,11 @@ def page_analyse():
             tags.append(f'<span class="tag bad">actor performed {truth}</span>')
     if cal is not None:
         tags.append('<span class="tag good">calibrated to ' + ("your voice" if row is None else "this speaker") + '</span>')
-    if bundle.get("robust"):
-        tags.append('<span class="tag good">microphone-robust model</span>')
     if adapted:
-        tags.append('<span class="tag good">adapted to ' + ("your voice" if row is None else "this speaker")
-                    + f' ({n_teach} examples)</span>')
+        tags.append('<span class="tag good">adapted to ' + ("your voice" if row is None else "this speaker") + '</span>')
     elif n_teach:
         tags.append(f'<span class="tag good">learned from {n_teach} correction{"s" if n_teach != 1 else ""}</span>')
-    if row is None and clip_id in st.session_state.get("teach", {}):
-        tags.append('<span class="tag">you taught it this recording</span>')
-    if cal is not None or n_teach:
-        tags.append(f'<span class="tag">{"without calibration" if not n_teach else "without calibration or teaching"}: '
-                    f'{orig_label} {orig_top:.0%}</span>')
     agree = second_label == label
-    tags.append(f'<span class="tag">{"named-feature model agrees" if agree else "named-feature model says " + second_label}</span>')
     who = (f"held-out speaker {row['speaker_id']} ({row['gender']}) from {row['corpus_name']}, never heard by this model"
            if row is not None else "your recording, analysed on this computer and not stored")
     st.markdown(
@@ -652,55 +631,29 @@ def page_analyse():
         teach_panel(clip_id, feats, label, base is not None)
 
     # ---------------- trust notes ----------------
-    e6 = U.load_json("phase8_e6_summary.json").get("calibration_ece", {})
     lo, hi, ref = ood_reference()
     n_out = int(((feats["egemaps"] < lo) | (feats["egemaps"] > hi)).sum())
     rank = float((ref < n_out).mean() * 100)
-    robust = bool(bundle.get("robust"))
-    if adapted:
-        taught = (" Both models have also adapted to your voice from your recordings of all six emotions: on "
-                  "speakers they had never heard, this raised UAR in all 10 of our tests, for example from 78% to "
-                  "85% (RAVDESS speakers) and from 74% to 77% on a simulated laptop microphone.")
-    elif n_teach:
-        taught = (f" It has also learned from {n_teach} of your corrections: on new speakers, 3 corrections raised "
-                  "accuracy by 1 to 7 points and, in an unfamiliar recording style, halved how often happy was "
-                  "called angry (21% to 10%). Teach it all six emotions (step 2) for a bigger gain.")
+    whose = "your voice" if row is None else "this speaker"
+    if row is None and adapted:
+        taught = " The model has also adapted to your voice from your recordings of all six emotions."
+    elif row is None and n_teach:
+        taught = f" It has also learned from {n_teach} correction{'s' if n_teach != 1 else ''}."
     else:
         taught = ""
-    if cal is not None and out_of_domain:
-        n1 = ('', "Calibrated to your voice",
-              f"This recording is compared with {base_desc}"
-              + (" and judged by the microphone-robust model. On simulated laptop and phone microphones, this "
-                 "combination scored 68 to 71% UAR on new speakers, against 57 to 66% for the studio model alone."
-                 if robust else
-                 ". On a simulated laptop microphone, calibration raised UAR from 58% to 70% (RAVDESS speakers) in "
-                 "our tests.")
-              + " Still read the score as approximate." + taught)
-    elif cal is not None:
-        n1 = ('', "Calibrated to this speaker",
-              f"Compared with {base_desc}. With this demo model, calibration raised UAR on the held-out speakers "
-              "from 72.5% to 77.1% (RAVDESS) and from 72.3% to 75.8% (CREMA-D)."
-              + (" Teaching it the speaker's voice raised it further on the remaining clips, from 80.5% to 86.9% "
-                 "(RAVDESS) and from 76.1% to 77.0% (CREMA-D)." if adapted else ""))
-    elif out_of_domain and robust:
-        n1 = ('caution', "Different recording conditions",
-              "Judged by the microphone-robust model, trained on every clip twice: as recorded and through a "
-              "simulated microphone and room. On simulated laptop, phone and far-room recordings it scored 3 to "
-              "18 points higher, and called neutral speech sad far less often (17% to 4% for CREMA-D speakers on "
-              "a simulated laptop microphone). Calibrate to your voice "
-              "(step 1) for a further gain on laptop and phone microphones.")
+    if cal is not None:
+        n1 = ('', f"Calibrated to {whose}", f"This clip is compared with {base_desc}." + taught
+              + (" Still read the score as approximate." if out_of_domain else ""))
     elif out_of_domain:
         n1 = ('caution', "Different recording conditions",
-              "Your microphone and room differ from the training studios, and the model leans on loudness, so normal "
-              "speech often reads as sad. Calibrate to your voice (step 1), and build the microphone-robust model "
-              "once with `python -m src.app_assets robust`.")
+              "Your microphone and room differ from the studios the model was trained in, so normal speech can "
+              "read as sad. Calibrate to your voice (step 1) for a better answer.")
     else:
-        n1 = ('', "Same recording style, new speaker",
-              f"On clips like this the score is honest: calibration error {e6.get('ravdess_fusion', 0.025):.3f} "
-              f"(RAVDESS) and {e6.get('cremad_fusion', 0.021):.3f} (CREMA-D), so 70% was right about 70% of the time.")
+        n1 = ('', "New speaker, same recording style",
+              "On clips like this the scores are reliable: a 70% score was right about 70% of the time.")
     n2 = ('caution' if rank >= 95 else '', "Unusual voice" if rank >= 95 else "Typical voice",
-          f"{n_out} of 88 features fall outside the normal training range, which is more unusual than "
-          f"{rank:.0f}% of the 8,498 training clips." + (" Treat the result with caution." if rank >= 95 else ""))
+          f"{n_out} of 88 voice features are outside the usual training range."
+          + (" Treat the result with caution." if rank >= 95 else ""))
     n3 = ('' if agree else 'caution', "Second opinion agrees" if agree else "Second opinion differs",
           f"A simpler model that only uses the 88 named features says {second_label}. "
           + ("Both models point the same way." if agree else "The evidence is mixed."))
@@ -708,11 +661,15 @@ def page_analyse():
         f'<div class="note {c}"><h4>{h}</h4><p>{p}</p></div>' for c, h, p in (n1, n2, n3)) + '</div>',
         unsafe_allow_html=True)
     for w in res["warnings"]:
-        if "outside the range" not in w:
-            st.warning(w)
+        if "outside the range" in w:
+            continue
+        if w.startswith("Low confidence") and top >= 0.4:      # the plain model was unsure, the final answer is not
+            continue
+        st.warning(w)
+    if top < 0.4 and not any(w.startswith("Low confidence") for w in res["warnings"]):
+        st.warning("Low confidence: no emotion clearly dominates.")
 
-    tabs = st.tabs(["Why", "Emotion compass", "What-if studio", "Two-dataset lens", "Timeline",
-                    "Voice profile", "Signal", "Stress test"])
+    tabs = st.tabs(["Why", "Signal"])
 
     # ---------------- why ----------------
     with tabs[0]:
@@ -722,12 +679,8 @@ def page_analyse():
                                help="Why this emotion, or why not another one?")
         k = CLASSES.index(k_name)
         others = [c for c in CLASSES if c != k_name]
-        runner = str(proba.drop(k_name).idxmax())
-        vs_name = cw2.selectbox("Compared with", ["every emotion (standard SHAP)"] + others,
-                                index=1 + others.index(runner), key=f"vs_{k_name}",
-                                help="Ask 'why this emotion and not that one?'. The bars then show which voice "
-                                     "features tip the balance between exactly these two emotions. It starts on "
-                                     "the runner-up, the emotion the model nearly chose.")
+        vs_name = cw2.selectbox("Compared with", ["all other emotions"] + others, key=f"vs_{k_name}",
+                                help="Optional: pick one emotion to ask 'why this emotion and not that one?'.")
         j = CLASSES.index(vs_name) if vs_name in CLASSES else None
         if cal is not None:
             phi = K.relative_shap(cal["relative_egemaps"], relm, k)
@@ -748,146 +701,30 @@ def page_analyse():
         st.markdown(U.explanation_sentence(expl, k_name, versus=None if j is None else vs_name,
                                            relative_to=None if cal is None else
                                            ("your" if row is None else "this speaker’s") + " normal voice"))
-        ca, cb = st.columns([1.7, 1])
-        with ca:
-            top_n = expl.head(12).iloc[::-1]
-            fig = go.Figure(go.Bar(
-                x=top_n["contribution"], y=top_n["readable"], orientation="h",
-                marker_color=["#2A78D6" if v > 0 else "#EB6834" for v in top_n["contribution"]],
-                customdata=np.c_[top_n["value"], top_n["percentile"], top_n["group"]],
-                hovertemplate=("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>difference from the normal voice "
-                               "%{customdata[0]:+.3f}<br>group %{customdata[2]}<extra></extra>") if cal is not None else
-                              ("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>value %{customdata[0]:.3f}"
-                               "<br>training percentile %{customdata[1]:.0f}<br>group %{customdata[2]}<extra></extra>")))
-            fig.add_vline(x=0, line_color="gray")
-            fig.update_xaxes(title=("contribution (log-odds): blue pushes toward, orange pushes away" if j is None else
-                                    f"log-odds of {k_name} over {vs_name}: blue favours {k_name}, orange favours {vs_name}"))
-            show(style(fig, 470, legend=False, title=(f"The 12 voice features that mattered most for {k_name}" if j is None
-                                                      else f"What tips it to {k_name} rather than {vs_name}")))
-        with cb:
-            g = expl.groupby("group")["contribution"].sum().reindex(list(GRP))
-            fig = go.Figure(go.Bar(x=g.index, y=g.values, marker_color=[GRP[i] for i in g.index],
-                                   text=[f"{v:+.2f}" for v in g.values], textposition="outside"))
-            fig.add_hline(y=0, line_color="gray")
-            fig.update_traces(cliponaxis=False)
-            show(style(fig, 250, legend=False, title="Net evidence by feature group").update_layout(yaxis_title="log-odds"))
-            if cal is None:
-                split = U.fusion_evidence_split(feats["egemaps"], feats["wavlm"][bundle["layer"]], bundle, k)
-                fig = go.Figure([go.Bar(y=[""], x=[v * 100], name=n, orientation="h", marker_color=c,
-                                        text=f"{v:.0%}", textposition="inside")
-                                 for (n, v), c in zip(split.items(), ["#EB6834", "#7B5BD6"])])
-                fig.update_layout(barmode="stack")
-                fig.update_xaxes(range=[0, 100], title="% of the main model's evidence for this emotion")
-                show(style(fig, 200, title="Named features versus WavLM"))
-            else:
-                rel_p = pd.Series(cal["relative_proba"]).reindex(CLASSES)
-                st.markdown(f"**How calibration changed the answer.** The original model said **{orig_label}** "
-                            f"({orig_top:.0%}); the model that compares with the normal voice says "
-                            f"**{rel_p.idxmax()}** ({rel_p.max():.0%}). The result above combines the two: an emotion wins only when both models find it likely.")
-        st.caption(("Calibrated: exact linear SHAP of a named-feature model trained on differences from each "
-                    "speaker's own normal voice, so every bar compares this clip with the normal voice. "
-                    if cal is not None else
-                    "Exact linear SHAP of the named-feature model, relative to the average training clip. ") +
-                   "Correlated features (loudness and overall sound level) can get opposite signs that largely "
-                   "cancel, so read them together. Feature groups are more stable than single features (Phase 8). "
-                   + ("With 'Compared with', each bar is the difference between the two emotions' SHAP values: "
-                      "exactly how much that feature moves the log-odds of one emotion over the other. " if j is not None else "")
-                   + "SHAP shows what the model uses; it does not prove that a voice property causes an emotion.")
-
-    # ---------------- compass ----------------
-    with tabs[1]:
-        ca, cb = st.columns([1.35, 1])
-        with ca:
-            show(compass_figure(proba.to_dict(), clip_key))
-        with cb:
-            st.markdown("#### Reading the compass")
-            st.markdown("The six emotions sit around a circle by **pleasantness** (left to right) and "
-                        "**energy** (bottom to top), the way psychologists often arrange them. The dot is the "
-                        "score-weighted position of this clip:")
-            st.markdown("- close to one emotion: the model is decisive\n"
-                        "- near the middle: the evidence is split\n"
-                        "- between two neighbours: the model is torn between similar emotions, such as "
-                        "fearful and sad, its most common confusion")
-            x, yv = S.compass_point(proba)
-            st.metric("Distance from the centre", f"{np.hypot(x, yv):.2f}",
-                      help="0 = completely mixed, about 0.9 = fully decisive")
-            st.caption("Run the stress test to add the modified copies of this clip as small points, and see "
-                       "how far the answer drifts. Positions are a readable layout, not measurements.")
-
-    # ---------------- what-if ----------------
-    with tabs[2]:
-        what_if_tab(feats["egemaps"], bundle, names, label, clip_key)
-
-    # ---------------- lens ----------------
-    with tabs[3]:
-        lens_tab(feats["egemaps"], names, truth)
-
-    # ---------------- timeline ----------------
-    with tabs[4]:
-        st.markdown("Does the emotion stay the same through the sentence? The named-feature model listens to "
-                    "one second at a time, sliding forward a quarter of a second each step.")
-        if st.button("Draw the timeline", type="primary"):
-            with st.spinner("Measuring each one-second window…"):
-                st.session_state["timeline"] = (clip_key, S.timeline(y, smile, bundle["explainer"]))
-        if st.session_state.get("timeline", (None,))[0] == clip_key:
-            tl = st.session_state["timeline"][1]
-            v = views_for(y)
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.72, 0.28], vertical_spacing=0.06)
-            for c in CLASSES:
-                fig.add_trace(go.Scatter(x=tl["t"], y=tl[c] * 100, name=c, stackgroup="one", mode="lines",
-                                         line=dict(width=0.5, color=EMO[c]), fillcolor=EMO[c],
-                                         hovertemplate=f"{c}: %{{y:.0f}}%<extra></extra>"), 1, 1)
-            rms = np.clip((v["rms_db"] - v["rms_db"].max()) / 60 + 1, 0, 1)
-            fig.add_trace(go.Scatter(x=v["t"], y=rms, fill="tozeroy", line=dict(color=SIGNAL_TEXT, width=1),
-                                     fillcolor="rgba(46,196,182,.35)", name="loudness", showlegend=False), 2, 1)
-            fig.update_yaxes(title_text="score (%)", range=[0, 100], row=1, col=1)
-            fig.update_yaxes(title_text="energy", showticklabels=False, row=2, col=1)
-            fig.update_xaxes(title_text="time (seconds)", row=2, col=1)
-            show(style(fig, 470, title="Emotion scores through the clip"))
-            dom = tl[CLASSES].idxmax(axis=1)
-            changes = int((dom != dom.shift()).sum() - 1)
-            st.markdown(f"The leading emotion changes **{changes}** time{'s' if changes != 1 else ''} across "
-                        f"{len(tl)} windows. Most acted clips hold one emotion; changes usually happen in quiet "
-                        "parts where there is little voice to measure.")
-            st.caption("Windows are shorter than the full clips the model was trained on, so each window is a "
-                       "rougher estimate than the main result above.")
-
-    # ---------------- voice profile ----------------
-    with tabs[5]:
-        T = labelled_table()
-        cmp_emo = st.selectbox("Compare with the typical training voice for", CLASSES, index=CLASSES.index(label))
-        prof = S.voice_profile(feats["egemaps"], names, T, cmp_emo)
-        fig = go.Figure()
-        theta = list(prof["feature"]) + [prof["feature"].iloc[0]]
-        fig.add_trace(go.Scatterpolar(r=list(prof["typical"]) + [prof["typical"].iloc[0]], theta=theta,
-                                      name=f"typical {cmp_emo} clip", fill="toself", line=dict(color=EMO[cmp_emo], dash="dot"),
-                                      fillcolor="rgba(0,0,0,0)"))
-        fig.add_trace(go.Scatterpolar(r=list(prof["clip"]) + [prof["clip"].iloc[0]], theta=theta, name="this clip",
-                                      fill="toself", line=dict(color=INK, width=3), fillcolor="rgba(30,27,58,.12)"))
-        fig.update_layout(polar=dict(bgcolor="rgba(0,0,0,0)", radialaxis=dict(range=[0, 100], tickvals=[25, 50, 75],
-                                     ticksuffix="th", gridcolor="#DDE1EC"), angularaxis=dict(gridcolor="#DDE1EC")))
-        ca, cb = st.columns([1.3, 1])
-        with ca:
-            show(style(fig, 470, title="Voice profile: percentile among all 8,498 training clips"))
-        with cb:
-            st.markdown("#### What each spoke means")
-            for _, lab in S.KNOBS:
-                st.markdown(f"- **{lab}**: {S.KNOB_HELP[lab]}")
-            st.caption("50th = an average training clip. The dotted shape is the median of all training clips "
-                       f"performed as {cmp_emo}.")
-        with st.expander("All 88 eGeMAPS features with their training percentiles"):
-            train = train_egemaps()
-            vals = pd.Series(feats["egemaps"], index=names)
-            allp = U.percentiles(vals.values, train[names])
-            st.dataframe(pd.DataFrame({"Feature": [U.readable(n) for n in names], "openSMILE name": names,
-                                       "Group": [U.feature_group(n) for n in names],
-                                       "Value": vals.values.round(4), "Percentile": allp.round(0)}),
-                         width="stretch", hide_index=True, height=400,
-                         column_config={"Percentile": st.column_config.ProgressColumn(
-                             "Percentile", min_value=0, max_value=100, format="%d")})
+        top_n = expl.head(10).iloc[::-1]
+        fig = go.Figure(go.Bar(
+            x=top_n["contribution"], y=top_n["readable"], orientation="h",
+            marker_color=["#2A78D6" if v > 0 else "#EB6834" for v in top_n["contribution"]],
+            customdata=np.c_[top_n["value"], top_n["percentile"], top_n["group"]],
+            hovertemplate=("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>difference from the normal voice "
+                           "%{customdata[0]:+.3f}<br>group %{customdata[2]}<extra></extra>") if cal is not None else
+                          ("<b>%{y}</b><br>contribution %{x:+.2f} log-odds<br>value %{customdata[0]:.3f}"
+                           "<br>training percentile %{customdata[1]:.0f}<br>group %{customdata[2]}<extra></extra>")))
+        fig.add_vline(x=0, line_color="gray")
+        fig.update_xaxes(title=(f"blue pushes toward {k_name}, orange pushes away" if j is None else
+                                f"blue favours {k_name}, orange favours {vs_name}"))
+        show(style(fig, 430, legend=False, title=(f"The 10 voice features that mattered most for {k_name}" if j is None
+                                                  else f"What tips it to {k_name} rather than {vs_name}")))
+        if cal is not None:
+            rel_p = pd.Series(cal["relative_proba"]).reindex(CLASSES)
+            st.markdown(f"**How calibration changed the answer.** The original model said **{orig_label}** "
+                        f"({orig_top:.0%}); the model that compares with the normal voice says "
+                        f"**{rel_p.idxmax()}** ({rel_p.max():.0%}). The result above combines the two.")
+        st.caption("Each bar is one measured property of the voice. Longer bars mattered more. This shows what the "
+                   "model uses; it does not prove that a voice property causes an emotion.")
 
     # ---------------- signal ----------------
-    with tabs[6]:
+    with tabs[1]:
         v = views_for(y)
         fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
                             row_heights=[0.2, 0.3, 0.3, 0.2],
@@ -919,155 +756,7 @@ def page_analyse():
         st.caption("This is exactly the processed 16 kHz signal the models receive, after silence trimming. The "
                    "pitch contour is drawn with pYIN; the model's own pitch features come from openSMILE.")
 
-    # ---------------- stress test ----------------
-    with tabs[7]:
-        st.markdown("Change the recording in ways that should **not** change the emotion, and re-run the full "
-                    "pipeline on each copy. A trustworthy answer survives.")
-        if st.button("Run the stress test (10 to 20 seconds)", type="primary"):
-            out = []
-            prog = st.progress(0.0)
-            for i, (_, kind, amt, lab) in enumerate(U.PERTURBATIONS):
-                yy = y if kind is None else U.perturb(y, kind, amt)
-                ff = features_for(yy)
-                rr = predict_features(ff["egemaps"], ff["wavlm"], bundle)
-                out.append({"Condition": lab, **{c: float(rr["proba"][c]) for c in CLASSES},
-                            "Prediction": rr["label"], "Named-feature model": rr["explainer_label"]})
-                prog.progress((i + 1) / len(U.PERTURBATIONS))
-            st.session_state["robust"] = (clip_key, pd.DataFrame(out))
-            st.rerun()                     # redraw the compass with the new points
-        if st.session_state.get("robust", (None,))[0] == clip_key:
-            df = st.session_state["robust"][1]
-            fig = go.Figure(go.Heatmap(z=df[CLASSES].values * 100, x=CLASSES, y=df["Condition"],
-                                       colorscale=[[0, "#FFFFFF"], [1, INK]], zmin=0, zmax=100,
-                                       text=(df[CLASSES].values * 100).round(0), texttemplate="%{text:.0f}",
-                                       colorbar=dict(title="%")))
-            fig.update_yaxes(autorange="reversed")
-            show(style(fig, 380, legend=False, title="Model scores for each modified copy"))
-            stable = (df["Prediction"] == df["Prediction"].iloc[0]).mean()
-            st.dataframe(df[["Condition", "Prediction", "Named-feature model"]], hide_index=True, width="stretch")
-            st.markdown(f"The answer stayed the same in **{stable:.0%}** of conditions. The volume rows test the "
-                        "loudness reliance found with SHAP in Phase 7: if a 12 dB quieter copy turns into sad, the "
-                        "model is partly listening to recording level, which a different microphone also changes. "
-                        "The copies now also appear on the emotion compass.")
     footer()
-
-
-def compass_figure(proba: dict, clip_key) -> go.Figure:
-    fig = go.Figure()
-    t = np.linspace(0, 2 * np.pi, 200)
-    fig.add_trace(go.Scatter(x=np.cos(t), y=np.sin(t), mode="lines", line=dict(color="#C9CEDD", width=1.5),
-                             hoverinfo="skip", showlegend=False))
-    fig.add_trace(go.Scatter(x=0.5 * np.cos(t), y=0.5 * np.sin(t), mode="lines",
-                             line=dict(color="#E3E7F0", width=1, dash="dot"), hoverinfo="skip", showlegend=False))
-    for x0, y0, x1, y1 in [(-1.08, 0, 1.08, 0), (0, -1.08, 0, 1.08)]:
-        fig.add_shape(type="line", x0=x0, y0=y0, x1=x1, y1=y1, line=dict(color="#E3E7F0", width=1))
-    for txt, x, yv, anc in [("more energy", 0, 1.17, "center"), ("less energy", 0, -1.17, "center"),
-                            ("unpleasant", -1.12, 0.06, "right"), ("pleasant", 1.12, 0.06, "left")]:
-        fig.add_annotation(x=x, y=yv, text=txt, showarrow=False, font=dict(color=MUTED, size=12), xanchor=anc)
-    for c in CLASSES:
-        ax, ay = S.COMPASS[c]
-        p = float(proba[c])
-        fig.add_trace(go.Scatter(x=[ax], y=[ay], mode="markers+text", text=[f"{c} {p:.0%}"],
-                                 textposition="top center" if ay >= 0 else "bottom center",
-                                 marker=dict(size=14 + 46 * p, color=EMO[c], opacity=.85, line=dict(color="white", width=2)),
-                                 textfont=dict(size=13, color=TEXT), hovertemplate=f"{c}: {p:.0%}<extra></extra>",
-                                 showlegend=False))
-    rob = st.session_state.get("robust", (None,))
-    if rob[0] == clip_key:
-        df = rob[1]
-        pts = [S.compass_point(r[CLASSES]) for _, r in df.iterrows()]
-        fig.add_trace(go.Scatter(x=[p[0] for p in pts[1:]], y=[p[1] for p in pts[1:]], mode="markers",
-                                 marker=dict(size=9, color="white", line=dict(color=INK, width=2)),
-                                 text=df["Condition"].iloc[1:], hovertemplate="%{text}<extra></extra>",
-                                 name="stress-test copies"))
-    x, yv = S.compass_point(proba)
-    fig.add_trace(go.Scatter(x=[x], y=[yv], mode="markers", name="this clip",
-                             marker=dict(size=22, color=INK, symbol="circle", line=dict(color=SIGNAL, width=4)),
-                             hovertemplate="this clip<extra></extra>"))
-    fig.update_xaxes(visible=False, range=[-1.45, 1.45], scaleanchor="y", scaleratio=1)
-    fig.update_yaxes(visible=False, range=[-1.32, 1.32])
-    return style(fig, 520, legend=True, title="Emotion compass")
-
-
-def what_if_tab(egemaps, bundle, names, label, clip_key):
-    exp = bundle["explainer"]
-    base = S.what_if(egemaps, exp, names, {})
-    st.markdown("Move a slider to change one aspect of this voice, measured in **training standard deviations** "
-                "(1 = one typical step between speakers). The named-feature model recomputes instantly and exactly.")
-    if st.session_state.get("knob_clip") != clip_key:
-        for f, _ in S.KNOBS:
-            st.session_state[f"knob_{f}"] = 0.0
-        st.session_state["knob_clip"] = clip_key
-    if st.button("Reset sliders"):
-        for f, _ in S.KNOBS:
-            st.session_state[f"knob_{f}"] = 0.0
-    shifts = {}
-    cols = st.columns(4)
-    for i, (f, lab) in enumerate(S.KNOBS):
-        shifts[f] = cols[i % 4].slider(lab, -3.0, 3.0, step=0.25, key=f"knob_{f}", help=S.KNOB_HELP[lab])
-    after = S.what_if(egemaps, exp, names, {f: d for f, d in shifts.items() if d != 0})
-    b_lab, a_lab = CLASSES[int(np.argmax(base))], CLASSES[int(np.argmax(after))]
-    ca, cb = st.columns([1.5, 1])
-    with ca:
-        fig = go.Figure([go.Bar(x=CLASSES, y=base * 100, name="original voice", marker_color="#C9CEDD"),
-                         go.Bar(x=CLASSES, y=after * 100, name="changed voice", marker_color=[EMO[c] for c in CLASSES])])
-        fig.update_layout(barmode="group", bargap=.25)
-        fig.update_yaxes(title="score (%)", range=[0, 105])
-        show(style(fig, 360, title="Named-feature model: before and after your changes"))
-    with cb:
-        if a_lab != b_lab:
-            st.markdown(f'<div class="note"><h4>The answer changed</h4><p>From <b style="color:{EMO[b_lab]}">'
-                        f'{b_lab}</b> to <b style="color:{EMO[a_lab]}">{a_lab}</b>.</p></div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="note"><h4>Still {a_lab}</h4><p>Score {after.max():.0%} '
-                        f'(was {base.max():.0%}).</p></div>', unsafe_allow_html=True)
-        st.markdown("")
-        target = st.selectbox("Smallest single change that would make it sound", [c for c in CLASSES if c != b_lab])
-        flips = S.smallest_flips(egemaps, exp, names, target)
-        ok = flips.dropna()
-        if ok.empty:
-            st.markdown(f"No single feature, moved by up to 3 standard deviations, turns this clip into {target}. "
-                        "It would take several changes at once.")
-        else:
-            best = ok.iloc[0]
-            st.markdown(f"**{best['feature']}** {'up' if best['shift_sd'] > 0 else 'down'} by "
-                        f"**{abs(best['shift_sd']):.2f}** standard deviations turns it into {target} "
-                        f"({best['score']:.0%}).")
-            st.dataframe(ok.assign(**{"change (SD)": ok["shift_sd"].round(2), "score": (ok["score"] * 100).round(0)})
-                         [["feature", "change (SD)", "score"]], hide_index=True, width="stretch")
-    st.caption(f"The main model above said {label}; this tool uses the simpler named-feature model so every change "
-               "can be traced exactly. Real voices change several features together (louder speech is also "
-               "brighter), so a single slider is a probe of the model, not a realistic new recording.")
-
-
-def lens_tab(egemaps, names, truth):
-    st.markdown("Your research question in one clip: **does the training dataset change the answer?** Three "
-                "copies of the named-feature model were trained on different data. Speakers of the demo fold are "
-                "left out of all three.")
-    L = lenses(tuple(names))
-    views = {k: S.lens_view(egemaps, v, names) for k, v in L.items()}
-    cols = st.columns(3)
-    for col, (name, v) in zip(cols, views.items()):
-        info = L[name]
-        drivers = "".join(f"<li>{d[0]} <span style='color:{MUTED}'>({d[1]})</span></li>" for d in v["drivers"])
-        verdict = ""
-        if truth is not None:
-            verdict = (f'<div style="color:{SIGNAL_TEXT};font-weight:700;margin-bottom:.5rem">matches the performed emotion</div>'
-                       if v["label"] == truth else
-                       f'<div style="color:#B23B3B;font-weight:700;margin-bottom:.5rem">misses {truth}</div>')
-        col.markdown(f'<div class="lens"><h4>{name}</h4><div class="sub">{info["n_clips"]:,} clips from '
-                     f'{info["n_speakers"]} speakers</div><div class="big" style="color:{EMO[v["label"]]}">'
-                     f'{v["label"]}</div>{verdict}{bars_html(v["proba"], v["label"])}'
-                     f'<div class="sub" style="margin-top:.8rem">Strongest reasons</div><ol>{drivers}</ol></div>',
-                     unsafe_allow_html=True)
-    labels = [v["label"] for v in views.values()]
-    if len(set(labels)) == 1:
-        st.success(f"All three agree on {labels[0]}. The reasons can still differ: compare the lists above.")
-    else:
-        st.warning("The three models disagree. This is the domain shift measured in Phase 8: a model trained on one "
-                   "dataset learns that dataset's recording style and acting, and transfers imperfectly.")
-    st.caption("Phase 8 result for context: across datasets every model lost 20 to 35 points of UAR; training on the "
-               "larger, more varied CREMA-D transferred far better than training on RAVDESS.")
 
 
 # ===========================================================================
@@ -1321,8 +1010,7 @@ def page_cross():
             "wavlm_minus_egemaps_rel_drop": "Difference in relative drop (WavLM − eGeMAPS)", "H1_supported": "H1 supported"})
         st.dataframe(t, hide_index=True, width="stretch")
         st.info("H1 depends on direction: trained on the small RAVDESS, WavLM loses relatively more; trained on the "
-                "varied CREMA-D, it transfers much better. Per-corpus normalisation helps every configuration. "
-                "Try the two-dataset lens on the Analyse page to see this on a single clip.")
+                "varied CREMA-D, it transfers much better. Per-corpus normalisation helps every configuration.")
     if e2 is not None:
         with st.expander("All models (SVM, LightGBM, MLP)"):
             m = st.selectbox("Model", ["logreg", "svm", "lgbm", "mlp"])
@@ -1413,7 +1101,7 @@ digraph {{
   eg [label="eGeMAPS\\n88 named voice features"]; wl [label="WavLM base-plus\\nlayer {layer}, averaged (768)"];
   pred [label="Fusion LogReg\\n(predicts)", fillcolor="{INK}", fontcolor="white"]; expm [label="eGeMAPS LogReg\\n(explains)"];
   out [label="Emotion and scores", color="{SIGNAL_TEXT}"];
-  shap [label="Exact SHAP, what-if,\\ncompass, lens", color="#EB6834"];
+  shap [label="Exact SHAP\\nexplanation", color="#EB6834"];
   audio -> pre -> eg; pre -> wl; eg -> pred; wl -> pred; eg -> expm; pred -> out; expm -> shap;
 }}""")
     info = U.load_json("phase9_final_model_summary.json").get("final_info", {})
@@ -1436,12 +1124,10 @@ same recipe trained without the fold-0 speakers, so you always hear a voice the 
 """)
     with c2:
         st.markdown("""
-**The interactive tools**
-- **Emotion compass**: the six scores placed by pleasantness and energy.
-- **What-if studio**: change one voice feature and recompute the named-feature model exactly.
-- **Two-dataset lens**: the same clip judged by models trained on RAVDESS, CREMA-D or both.
-- **Timeline**: emotion scores one second at a time.
-- **Stress test**: quieter, louder, pitch-shifted and noisy copies.
+**What the Analyse page shows**
+- **The answer**: the emotion the model hears, with all six scores.
+- **Why**: the voice features that pushed the answer, computed exactly with SHAP.
+- **Signal**: the waveform, spectrogram and pitch of the clip.
 
 **Limitations and ethics**
 - Acted, exaggerated English speech; real emotions are subtler.

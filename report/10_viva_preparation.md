@@ -46,7 +46,7 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 
 **A10. What does your app do? (PR)**
 - *Short:* It records or loads a clip, runs the real pipeline, shows the predicted emotion with class scores, explains why with SHAP, and warns when the result should not be trusted.
-- *Deeper:* It also shows spectrogram, Mel-spectrogram and pitch, compares voice features with the training data, runs a robustness simulation (volume, pitch, noise), and presents all our experimental results interactively.
+- *Deeper:* It also shows spectrogram, Mel-spectrogram and pitch, checks how typical the voice is against the training data, and presents all our experimental results interactively.
 
 **A11. What is a confusion matrix? (PS)**
 - *Short:* A table of true emotion vs predicted emotion.

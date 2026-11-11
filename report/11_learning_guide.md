@@ -356,9 +356,7 @@ Streamlit turns Python into a web app. Yours:
 1. Takes a **dataset clip, an uploaded file or your microphone**.
 2. Runs the **same preprocessing and features** as training (verified identical).
 3. Shows the **prediction and all 6 scores** in a console panel, three **trust notes**, and a **SHAP explanation** ("Why" tab) for any emotion.
-4. Adds interactive tools: an **emotion compass**, a **what-if studio** (move one voice feature, watch the answer change), a **two-dataset lens** (models trained on RAVDESS, CREMA-D or both judge the same clip), a **timeline** and a **voice profile**.
-5. Shows **waveform, spectrogram, Mel-spectrogram, pitch** ("Signal" tab).
-6. Runs a **stress test**: quieter, louder, pitch-shifted and noisy copies. Does the prediction survive? (Volume tests the loudness reliance SHAP found.)
+4. Shows **waveform, spectrogram, Mel-spectrogram, pitch** ("Signal" tab).
 
 **Honesty features:**
 - Dataset demos use a model trained **without those speakers**, so the test is honest.
@@ -504,7 +502,7 @@ Better in **all 10 tests**; in 8 the bootstrap interval stays above zero. Happy 
 9. **Across corpora:** everyone drops 20–35 points. H1 depends on direction: **training diversity matters most**. Per-corpus normalisation helps.
 10. **Explanation stability:** 0.78 > 0.63 > 0.50 > 0 (H2 ✔); WavLM least stable; groups stable.
 11. **Stable-core selection:** didn't reliably help (H3 inconclusive). Errors: neutral collapses, quiet → sad, human-hard = model-hard.
-12. **App:** real model, explanation (including "why X and not Y?"), robustness test, honest warnings.
+12. **App:** real model, explanation (including "why X and not Y?"), signal view, honest warnings.
 13. **Real voices:** microphone-robust training (+3 to +18 points on fake mics), calibration to your voice (69 → 77% / 72 → 75%), learning from corrections (happy-called-angry 21% → 10%) and teaching it your voice with one sentence per emotion (better in all 10 tests, e.g. 78 → 85%), all tested on new speakers.
 
 ---

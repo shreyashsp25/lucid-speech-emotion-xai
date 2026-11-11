@@ -30,7 +30,7 @@ Marking criteria covered: working system (demo, slides 19–20), research contri
 | 16 | 04 What we found | H3 inconclusive; errors follow acting style and labels | 1 gain / 4 losses / 7 null; neutral recall 0.09; human-hard = model-hard | Praveen |
 | 17 | 04 What we found | Standard checks | ROC-AUC 0.97 / 0.94; ECE 0.025 / 0.021; learning curve still rising | Pranav |
 | 18 | 04 What we found | How our findings compare with published work | Same embedding gap as P4; P5 partly reproduced; P3 only one way | Piriya |
-| 19 | 05 Demo & wrap-up | Live demo | Real model, SHAP and "why X and not Y?", what-if studio, two-dataset lens, stress test, trust notes, calibrate to your voice | Praveen |
+| 19 | 05 Demo & wrap-up | Live demo | Real model, SHAP and "why X and not Y?", signal view, trust notes, calibrate to your voice, teach it your voice | Praveen |
 | 20 | 05 Demo & wrap-up | Built for real voices: three tested fixes | Simulated-mic training +4 to +15 on new CREMA-D speakers (no studio loss); calibration 69 → 77%; corrections halve happy-called-angry; notes add the fourth fix, teach it your voice (78 → 85% on new RAVDESS speakers) | Pranav |
 | 21 | 05 Demo & wrap-up | Limitations and ethics | Two acted corpora; not for decisions about people | Praveen |
 | 22 | 05 Demo & wrap-up | Answer to the research question | Accuracy doesn't travel; explanations partly; stability is a diagnostic; XAI earned its place | all |
@@ -47,12 +47,10 @@ Marking criteria covered: working system (demo, slides 19–20), research contri
 
 **Steps**
 1. **Analyse a voice → Dataset clip → CREMA-D → angry.** Point out the console: the emotion, the score ring, all six scores, the waveform; "matches the performed emotion"; the speaker was never heard by this model; the three trust notes (calibrated in-domain).
-2. **Why tab.** The plain-language sentence; blue/orange bars; set **Compared with** to *happy*: "why angry and not happy?" (shared loudness cancels, what separates the two remains); group chart; eGeMAPS vs WavLM evidence share.
-3. **What-if studio.** Lower *Loudness attack* and *Overall sound level*: watch the answer move. Pick *sad* under "smallest single change" and read the result aloud.
-4. **Two-dataset lens.** Switch to RAVDESS → neutral: the RAVDESS-only, CREMA-D-only and pooled models often disagree. "This is our research question on one clip."
-5. **Stress test**, then **Emotion compass.** Run the stress test; on the compass the modified copies appear as small dots, showing how far the answer drifts (volume tests the loudness reliance found by SHAP).
-6. **Record.** Point to the *microphone-robust model* tag. Open **Step 1** and say the three calm sentences. Open **Step 2** and say one sentence in each of the six emotions ("teach it your voice"); do this before the viva and keep the browser tab open, because it lasts for the session. Then **Step 3**: one sentence, angry voice, then sad voice; compare with "without calibration or teaching". If it is wrong, use **Wrong answer?** to teach it and record again. Point to the trust notes: "the app tells you how far to trust it".
-7. **New-dataset test page.** H1 chart and the neutral collapse. Close with "accuracy within a dataset is not the whole story".
+2. **Why tab.** The plain-language sentence; blue/orange bars; set **Compared with** to *happy*: "why angry and not happy?" (shared loudness cancels, what separates the two remains).
+3. **Signal tab.** The waveform, spectrogram and pitch of the same clip: exactly what the models receive.
+4. **Record.** Open **Step 1** and say the three calm sentences. Open **Step 2** and say one sentence in each of the six emotions ("teach it your voice"); do this before the viva and keep the browser tab open, because it lasts for the session. Then **Step 3**: one sentence, angry voice, then sad voice; open the Why tab to see what the plain model said. If it is wrong, use **Wrong answer?** to teach it and record again. Point to the trust notes: "the app tells you how far to trust it".
+5. **New-dataset test page.** H1 chart and the neutral collapse. Close with "accuracy within a dataset is not the whole story".
 
 **If something fails**
 - Microphone blocked → use **Upload a file** with a prepared `.wav` recorded earlier (keep one on the desktop).
