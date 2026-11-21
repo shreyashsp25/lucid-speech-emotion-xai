@@ -33,7 +33,7 @@ Needs `models/final_models.joblib` (from `notebooks/07_final_model.ipynb`), the 
 
 Every chart is drawn from the trained models or the saved result files; nothing is hard-coded or simulated.
 
-**Simplified in November 2026.** Earlier versions of the Analyse page had six more tabs: emotion compass, what-if studio, two-dataset lens, timeline, voice profile and stress test. They were removed to make the app easier to follow. The Why tab lost its two side charts (net evidence per feature group, eGeMAPS vs WavLM evidence share), and the console shows fewer tags. The earlier version remains in the git history (commit 0212a35), and its helper functions remain in `src/studio.py` and `src/app_utils.py`.
+**Simplified in November 2026.** Earlier versions of the Analyse page had six more tabs: emotion compass, what-if studio, two-dataset lens, timeline, voice profile and stress test. They were removed to make the app easier to follow. The Why tab lost its two side charts (net evidence per feature group, eGeMAPS vs WavLM evidence share), and the console shows fewer tags. Their helper functions remain in `src/studio.py` and `src/app_utils.py`.
 
 ## 3. Design decisions for honest predictions
 
@@ -51,7 +51,7 @@ Every chart is drawn from the trained models or the saved result files; nothing 
 
 ## 4. Stress test (earlier version only): why it is scientifically useful
 
-The stress test was removed from the app in the November 2026 simplification; it remains in the git history (commit 0212a35). Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recording level also depends on the microphone and distance, not only on emotion. The stress test let anyone check this live: if a copy 12 dB quieter flips the prediction to *sad*, the model is using recording level. Pitch shifts test reliance on speaker voice range (male vs female), and added noise tests recording quality. These are the same failure modes behind the cross-corpus drop in Phase 8.
+The stress test was removed from the app in the November 2026 simplification. Phase 7 found that the CREMA-D model relies on loudness (quiet → *sad*). Recording level also depends on the microphone and distance, not only on emotion. The stress test let anyone check this live: if a copy 12 dB quieter flips the prediction to *sad*, the model is using recording level. Pitch shifts test reliance on speaker voice range (male vs female), and added noise tests recording quality. These are the same failure modes behind the cross-corpus drop in Phase 8.
 
 ## 5. Testing done
 
