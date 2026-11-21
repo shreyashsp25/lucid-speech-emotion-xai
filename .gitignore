@@ -24,3 +24,6 @@ models/
 # your own recordings and local check reports (never uploaded)
 recordings/
 selfcheck_report.txt
+
+# old planning notes (superseded by report/10_final_report.md)
+PROJECT_STATE*.md

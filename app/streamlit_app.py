@@ -42,7 +42,7 @@ st.set_page_config(page_title="Lucid voice emotion lab", page_icon="〰️", lay
 # ---------------------------------------------------------------------------
 # Visual identity
 # ---------------------------------------------------------------------------
-INK, PAPER, LINE, TEXT, MUTED = "#1E1B3A", "#F4F6FB", "#D9DDEA", "#23263A", "#5E6480"
+INK, PAPER, LINE, TEXT, MUTED = "#1E1B3A", "#EEF0F7", "#D5D9E8", "#23263A", "#5E6480"
 SIGNAL, SIGNAL_TEXT, CAUTION = "#2EC4B6", "#0E7F7B", "#C98A00"
 EMO = U.EMO_COLOUR
 GRP = U.GROUP_COLOUR
@@ -53,7 +53,11 @@ st.markdown(f"""
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
 :root {{ --ink:{INK}; --paper:{PAPER}; --line:{LINE}; --text:{TEXT}; --muted:{MUTED};
          --signal:{SIGNAL}; --signal-text:{SIGNAL_TEXT}; --caution:{CAUTION}; }}
-.stApp {{ background: var(--paper); }}
+.stApp {{ background-color: var(--paper);
+          background-image: radial-gradient(rgba(30,27,58,.085) 1px, transparent 1.3px);
+          background-size: 18px 18px; }}
+.stApp [data-testid="stHeader"] {{ background: rgba(238,240,247,.86); backdrop-filter: blur(8px);
+          border-bottom: 1px solid var(--line); }}
 .block-container {{ padding-top: 4.2rem; max-width: 1320px; }}
 .stApp p, .stApp li, .stApp label, .stApp td, .stApp th, .stApp input, .stApp textarea,
 .stApp button, .stApp [data-testid="stMetricValue"], .stApp [data-testid="stMetricLabel"],
@@ -63,9 +67,16 @@ st.markdown(f"""
   {{ font-family: 'Bricolage Grotesque', 'Instrument Sans', sans-serif; color: var(--text);
      letter-spacing: -0.01em; }}
 .masthead {{ margin: 0 0 1.3rem 0; max-width: 62rem; }}
-.masthead h1 {{ font-size: 2.55rem; font-weight: 750; line-height: 1.05; margin: 0 0 .45rem 0; }}
+.masthead h1 {{ font-size: 3.15rem; font-weight: 780; line-height: 1.02; letter-spacing: -0.025em;
+               margin: 0 0 .7rem 0; }}
+.spectrum {{ display: flex; gap: 4px; width: 15rem; max-width: 100%; margin: 0 0 .9rem 0; }}
+.spectrum span {{ flex: 1; height: 7px; border-radius: 99px; }}
 .masthead p {{ color: var(--muted); font-size: 1.06rem; line-height: 1.5; margin: 0; max-width: 46rem; }}
-.console {{ background: var(--ink); color: #EDEFFA; border-radius: 22px; padding: 1.6rem 1.8rem;
+.console {{ --glow: var(--emo, {SIGNAL}); position: relative; overflow: hidden; color: #EDEFFA;
+            border-radius: 28px; padding: 1.9rem 2.1rem;
+            background: radial-gradient(90% 130% at 0% 0%, color-mix(in srgb, var(--glow) 34%, transparent), transparent 62%),
+                        var(--ink);
+            box-shadow: 0 28px 50px -30px rgba(30,27,58,.75), inset 0 0 0 1px rgba(255,255,255,.07);
             display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 2.2rem;
             align-items: center; margin: .6rem 0 1.1rem 0; }}
 .console .heard {{ color: #AEB3D6; font-size: .98rem; margin-bottom: .1rem; }}
@@ -92,19 +103,40 @@ st.markdown(f"""
 .note.caution {{ border-left-color: var(--caution); }}
 .note h4 {{ font-size: 1rem; margin: 0 0 .25rem 0; }}
 .note p {{ color: var(--muted); font-size: .92rem; line-height: 1.45; margin: 0; }}
-.lens {{ background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 1rem 1.1rem; height: 100%; }}
-.lens h4 {{ margin: 0; font-size: 1.12rem; }}
-.lens .sub {{ color: var(--muted); font-size: .86rem; margin: .1rem 0 .6rem 0; }}
-.lens .big {{ font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 2.2rem;
-              line-height: 1; margin-bottom: .6rem; }}
-.lens .bars .name, .lens .bars .pct {{ color: var(--muted); }}
-.lens .bars .track {{ background: #EEF0F6; }}
-.lens ol {{ margin: .7rem 0 0 1.1rem; padding: 0; color: var(--text); font-size: .9rem; }}
 .foot {{ color: var(--muted); font-size: .84rem; border-top: 1px solid var(--line); margin-top: 2.4rem;
          padding-top: .8rem; }}
-.stTabs [data-baseweb="tab-list"] {{ gap: .2rem; }}
+.console::after {{ content: ""; position: absolute; inset: 0; pointer-events: none;
+            background: repeating-radial-gradient(circle at 100% 100%, transparent 0 26px, rgba(255,255,255,.04) 26px 27px); }}
+.console > div {{ position: relative; z-index: 1; }}
+.console .word {{ font-size: 5rem; text-shadow: 0 0 46px color-mix(in srgb, var(--glow) 60%, transparent); }}
+.console .heard {{ font-size: 1.02rem; }}
+.console .trace svg {{ height: 150px; }}
+.bars {{ gap: .45rem .8rem; }}
+.bars .track {{ height: .7rem; }}
+.bars .fill {{ animation: grow .8s cubic-bezier(.2,.8,.2,1) both; }}
+@keyframes grow {{ from {{ width: 0; }} }}
+.tag {{ padding: .22rem .8rem; background: rgba(255,255,255,.05); }}
+.note {{ border-radius: 16px; padding: .95rem 1.1rem; border-left-width: 6px;
+         box-shadow: 0 14px 26px -22px rgba(30,27,58,.55); }}
+.note h4 {{ font-size: 1.06rem; }}
+.stApp [data-testid^="stBaseButton"] {{ border-radius: 999px; font-weight: 600; }}
+.stApp [data-testid="stBaseButton-primary"] {{ background: var(--ink); border-color: var(--ink); color: #fff; }}
+.stApp [data-testid="stBaseButton-primary"]:hover {{ background: var(--signal-text); border-color: var(--signal-text); }}
+.stApp [data-baseweb="tab"] p {{ font-size: 1.04rem; font-weight: 600; }}
+.stApp [data-baseweb="tab"][aria-selected="true"] p {{ color: var(--ink); }}
+.stApp [data-baseweb="tab-highlight"] {{ background-color: var(--ink); height: 3px; border-radius: 3px; }}
+.stApp [data-testid="stExpander"] details {{ background: #fff; border: 1px solid var(--line); border-radius: 16px; }}
+.stApp [data-baseweb="select"] > div {{ background: #fff; border-radius: 12px; }}
+.stApp [data-testid="stPlotlyChart"] {{ background: #fff; border: 1px solid var(--line); border-radius: 18px;
+         padding: .5rem .6rem 0 .6rem; box-shadow: 0 14px 26px -24px rgba(30,27,58,.5); }}
+.stApp [data-testid="stMetric"] {{ background: #fff; border: 1px solid var(--line); border-radius: 16px;
+         padding: .8rem 1rem; }}
+.stApp [data-testid="stAlert"] {{ border-radius: 14px; }}
+.stApp audio {{ width: 100%; }}
+.stTabs [data-baseweb="tab-list"] {{ gap: .6rem; }}
 @media (max-width: 900px) {{ .console {{ grid-template-columns: 1fr; }} .notes {{ grid-template-columns: 1fr; }}
-                            .console .word {{ font-size: 3.2rem; }} }}
+                            .console .word {{ font-size: 3.4rem; }}
+                            .masthead h1 {{ font-size: 2.3rem; }} .console {{ padding: 1.4rem 1.3rem; }} }}
 @media (prefers-reduced-motion: reduce) {{ * {{ transition: none !important; animation: none !important; }} }}
 </style>
 """, unsafe_allow_html=True)
@@ -137,7 +169,10 @@ def show(fig):
 
 
 def masthead(title: str, lede: str):
-    st.markdown(f'<div class="masthead"><h1>{title}</h1><p>{lede}</p></div>', unsafe_allow_html=True)
+    strip = "".join(f'<span style="background:{EMO[c]}" title="{c}"></span>' for c in CLASSES)
+    st.markdown(f'<div class="masthead"><h1>{title}</h1><div class="spectrum" role="img" '
+                f'aria-label="The six emotions the model knows">{strip}</div><p>{lede}</p></div>',
+                unsafe_allow_html=True)
 
 
 def bars_html(proba: dict, highlight: str | None = None) -> str:
@@ -617,13 +652,13 @@ def page_analyse():
     who = (f"held-out speaker {row['speaker_id']} ({row['gender']}) from {row['corpus_name']}, never heard by this model"
            if row is not None else "your recording, analysed on this computer and not stored")
     st.markdown(
-        f'<div class="console"><div><div class="heard">The model hears</div>'
+        f'<div class="console" style="--emo:{EMO[label]}"><div><div class="heard">The model hears</div>'
         f'<div class="verdict"><div class="word" style="color:{EMO[label]}">{label}</div>'
         + (f'<div style="align-self:flex-end;color:#C9CCE0;font-size:1.15rem;margin:0 .6rem .9rem 0">'
            f'or <b style="color:{EMO[runner]}">{runner}</b> {runner_p:.0%}</div>' if close else '') +
         f'<div class="ring">{S.ring_svg(top, EMO[label], "rgba(255,255,255,.12)")}</div></div>'
         f'<div class="tags">{"".join(tags)}</div>{bars_html(proba.to_dict(), label)}</div>'
-        f'<div><div class="trace">{S.waveform_svg(y, SIGNAL)}</div>'
+        f'<div><div class="trace">{S.waveform_svg(y, EMO[label])}</div>'
         f'<div class="trace-cap">{duration:.2f} seconds of speech after trimming silence. Source: {who}.</div></div></div>',
         unsafe_allow_html=True)
 
