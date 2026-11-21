@@ -165,6 +165,6 @@ def predict_file(path_or_wave, bundle: dict | None = None, sr: int | None = None
     out = predict_features(feats["egemaps"], feats["wavlm"], bundle)
     out["duration_s"] = round(len(feats["wave"]) / feats["sr"], 2)
     if out["duration_s"] < 1.0:
-        out["warnings"].append("Very short clip (< 1 s) after trimming silence.")
+        out["warnings"].append("Very short clip (< 1 s) after cutting silence (30 dB below the loudest point).")
     out["features"] = feats
     return out

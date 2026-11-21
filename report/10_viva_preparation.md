@@ -65,7 +65,7 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 - *Deeper:* RAVDESS: 24 actors, 2 sentences, studio-clean, 48 kHz. CREMA-D: 91 actors of varied age and ethnicity, 12 sentences, 16 kHz. Different size, diversity and recording conditions make a realistic but controlled cross-corpus test.
 
 **B2. How did you preprocess the audio? (PY)**
-- *Short:* Mono, resample to 16 kHz, trim edge silence; no volume normalisation.
+- *Short:* Mono, resample to 16 kHz, trim edge silence (anything 30 dB below the loudest point counts as silence); no volume normalisation.
 - *Deeper:* 5 RAVDESS files were stereo; resampling removes a 48 vs 16 kHz format confound and is required by WavLM; trimming (top_db 30) removed ~1.8 s of extra silence from RAVDESS. We did not normalise volume because loudness is an emotion cue; standardisation is done later inside each training pipeline.
 
 **B3. How much did leakage inflate results? (PS)**

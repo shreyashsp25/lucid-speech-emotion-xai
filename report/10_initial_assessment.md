@@ -58,7 +58,7 @@ The marking criteria are covered as follows: problem (slide 2), motivation (slid
 - **Say:** both free and standard; they share six emotions; they differ in size, diversity and recording, so they give a realistic cross-corpus test. CREMA-D listener votes let us study label quality.
 
 ### Slide 9 — Methodology (Piriya)
-- Preprocessing: mono, 16 kHz, trim silence, no volume normalisation.
+- Preprocessing: mono, 16 kHz, trim silence (anything 30 dB below the loudest point counts as silence), no volume normalisation.
 - Features: eGeMAPS (88), WavLM base-plus (768, layer chosen by inner CV), fusion.
 - Models: LogReg, RBF-SVM, LightGBM, MLP; **KNN excluded** (rule; also distance-based methods are fragile under corpus shift and give no global explanation).
 - Evaluation: 5 speaker-independent folds (grouped by speaker, stratified by emotion and gender); nested CV for tuning; UAR primary; speaker-level bootstrap CIs.
@@ -67,8 +67,8 @@ The marking criteria are covered as follows: problem (slide 2), motivation (slid
 
 ### Slide 10 — Architecture / workflow (Praveen)
 ```
-audio ─► mono · 16 kHz · trim ─┬─► eGeMAPS (88) ─┐
-                               └─► WavLM layer ──┴─► speaker-independent CV / cross-corpus
+audio ─► mono · 16 kHz · trim (−30 dB) ─┬─► eGeMAPS (88) ─┐
+                                        └─► WavLM layer ──┴─► speaker-independent CV / cross-corpus
                                                       ─► LogReg | SVM | LightGBM | MLP
                                                       ─► UAR, F1, CI
                                                       ─► SHAP ─► stability ─► stable-core selection

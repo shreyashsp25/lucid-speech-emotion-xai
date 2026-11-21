@@ -148,7 +148,7 @@ Identical for both corpora (`src/audio.py`):
 |---|---|---|
 | Mono | average channels | 5 RAVDESS files are stereo |
 | Resample | 16 kHz, exact polyphase | removes a format confound; required by WavLM |
-| Trim edge silence | `top_db = 30`, never below 0.25 s | RAVDESS had ~1.8 s extra silence (mean 3.70 → 1.90 s; CREMA-D 2.54 → 2.39 s) |
+| Trim edge silence: anything 30 dB below the loudest point counts as silence | `top_db = 30`, never below 0.25 s | RAVDESS had ~1.8 s extra silence (mean 3.70 → 1.90 s; CREMA-D 2.54 → 2.39 s) |
 | Amplitude normalisation | none | loudness is an emotion cue; corpus gain is handled by standardisation |
 | Standardisation | z-score, then **clip to ±5 SD**, inside each pipeline, fitted on training data only | see §14.5 (found through SHAP) |
 

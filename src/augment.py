@@ -12,7 +12,7 @@ FIXED conditions; "far_room" lies partly outside the training ranges on purpose 
 level, brown noise), to check that the model did not just learn the training recipe.
 
 All functions take and return float32 mono waveforms at 16 kHz, after the usual loading
-(resample + silence trim, src.audio.load_audio).
+(resample + silence trim at 30 dB below the peak, src.audio.load_audio).
 """
 from __future__ import annotations
 

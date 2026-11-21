@@ -29,7 +29,7 @@ Both corpora match their published file counts, and no files are corrupt.
 |---|---|---|
 | **Sample rates differ** (48 kHz vs 16 kHz) | Features would differ just from the recording format, which is a corpus confound | Resample everything to **16 kHz** (also required by WavLM) |
 | **5 RAVDESS files are stereo**: `03-01-02-01-01-02-01`, `03-01-08-01-02-02-01` (actor 01), `03-01-02-01-02-02-05` (actor 05), `03-01-03-01-02-01-20`, `03-01-06-01-01-02-20` (actor 20) | Inconsistent input shape | Convert to mono by averaging channels |
-| **RAVDESS clips are ~1.2 s longer** on average | Duration-related features (e.g., eGeMAPS temporal features) could separate corpora rather than emotions | Trim leading/trailing silence; compare durations after trimming; watch for duration features in SHAP |
+| **RAVDESS clips are ~1.2 s longer** on average | Duration-related features (e.g., eGeMAPS temporal features) could separate corpora rather than emotions | Trim leading/trailing silence (anything 30 dB below the loudest point counts as silence); compare durations after trimming; watch for duration features in SHAP |
 
 ## 3. Emotion labels and harmonisation
 

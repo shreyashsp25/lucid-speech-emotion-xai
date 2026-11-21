@@ -5,7 +5,8 @@ Same steps for both corpora, so differences in the features come from the
 speech, not from the recording format:
   1. read file, convert to mono (average channels; 5 RAVDESS files are stereo)
   2. resample to 16 kHz (RAVDESS is 48 kHz, CREMA-D 16 kHz; WavLM needs 16 kHz)
-  3. trim leading/trailing silence (RAVDESS clips carry ~1 s more silence)
+  3. trim leading/trailing silence: anything 30 dB below the loudest point counts as silence
+     (RAVDESS clips carry ~1 s more silence)
 
 Amplitude is NOT normalised here: loudness is an emotion cue. Corpus-level
 gain differences are handled later by feature standardisation (Phase 6).

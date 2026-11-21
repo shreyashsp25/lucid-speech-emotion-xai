@@ -659,7 +659,7 @@ def page_analyse():
         f'<div class="ring">{S.ring_svg(top, EMO[label], "rgba(255,255,255,.12)")}</div></div>'
         f'<div class="tags">{"".join(tags)}</div>{bars_html(proba.to_dict(), label)}</div>'
         f'<div><div class="trace">{S.waveform_svg(y, EMO[label])}</div>'
-        f'<div class="trace-cap">{duration:.2f} seconds of speech after trimming silence. Source: {who}.</div></div></div>',
+        f'<div class="trace-cap">{duration:.2f} seconds of speech after cutting silence (anything 30 dB below the loudest point). Source: {who}.</div></div></div>',
         unsafe_allow_html=True)
 
     if row is None:
@@ -780,7 +780,7 @@ def page_analyse():
         m1.metric("Speech length", f"{duration:.2f} s")
         m2.metric("Samples at 16 kHz", f"{len(y):,}")
         m3.metric("Frames within 20 dB of the peak", f"{(loud > -20).mean():.0%}")
-        st.caption("This is exactly the processed 16 kHz signal the models receive, after silence trimming. "
+        st.caption("This is exactly the processed 16 kHz signal the models receive, after cutting silence: anything 30 dB below the loudest point counts as silence and is cut from the start and end. "
                    "Top: the sound wave and its energy over time. Bottom: which frequencies are present at each "
                    "moment (brighter = more energy).")
 
@@ -1125,7 +1125,7 @@ digraph {{
   rankdir=LR; bgcolor="transparent";
   node [shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="{INK}", fontname="Helvetica", fontcolor="{TEXT}"];
   edge [color="{MUTED}"];
-  audio [label="Audio\\n(any rate, mono or stereo)"]; pre [label="Clean\\nmono, 16 kHz, trim silence"];
+  audio [label="Audio\\n(any rate, mono or stereo)"]; pre [label="Clean\\nmono, 16 kHz\\ncut silence: 30 dB below the loudest point"];
   eg [label="eGeMAPS\\n88 named voice features"]; wl [label="WavLM base-plus\\nlayer {layer}, averaged (768)"];
   pred [label="Fusion LogReg\\n(predicts)", fillcolor="{INK}", fontcolor="white"]; expm [label="eGeMAPS LogReg\\n(explains)"];
   out [label="Emotion and scores", color="{SIGNAL_TEXT}"];

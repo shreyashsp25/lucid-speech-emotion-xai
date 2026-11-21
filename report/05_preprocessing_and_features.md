@@ -10,7 +10,7 @@ Team Lucid · Measured by `notebooks/02_feature_extraction.ipynb` (19 Oct 2026).
 |---|---|---|
 | Mono | average channels | 5 RAVDESS files are stereo (Phase 3) |
 | Resample | **16 kHz** (exact polyphase) | RAVDESS is 48 kHz, CREMA-D 16 kHz; removes a format confound; required by WavLM |
-| Trim edge silence | `top_db = 30`, never below 0.25 s | RAVDESS clips carried extra leading/trailing silence |
+| Trim edge silence: anything 30 dB below the loudest point counts as silence | `top_db = 30`, never below 0.25 s | RAVDESS clips carried extra leading/trailing silence |
 | Amplitude normalisation | **none** | Loudness is an emotion cue; corpus gain differences are handled by feature standardisation in Phase 6 |
 
 **Effect on duration (mean):**
