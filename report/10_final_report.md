@@ -448,7 +448,7 @@ A Streamlit application (`app/streamlit_app.py`, `report/09_simulation.md`) runs
 - **Output:** the predicted emotion in a console panel with a score ring, all six class scores, the clip's waveform, and three trust notes (calibration in-domain or an explicit out-of-domain warning for uploads; a typicality rank against the 8,498 training clips; agreement between the fusion and eGeMAPS models).
 - **Explanation:** exact linear SHAP for any chosen emotion, and **contrastive** "why X and not Y?" explanations (the difference of two classes' SHAP values, which for a linear model is exactly each feature's contribution to the log-odds of X over Y); with a plain-language summary and a chart of the ten voice features that mattered most.
 - **Real voices (§14.9):** recordings go to the microphone-robust model; the user can calibrate with three calm sentences, teach it their voice with one sentence per emotion, and correct wrong answers ("Wrong answer? I was …"); each re-fits the personal models in seconds and stays in the browser session.
-- **Signal views:** waveform, energy, spectrogram, Mel-spectrogram, pitch contour (pYIN [25]).
+- **Signal views:** waveform, energy and spectrogram.
 - **Simplified (November 2026):** earlier versions also had an emotion compass, a what-if studio, a two-dataset lens, an emotion timeline, a voice profile and a stress test. They were removed to keep the app easy to follow.
 - **Close calls:** when the top two scores are within 15 points, both are shown. On held-out speakers this affected about 1 clip in 8; the top answer was then right only 33–40% of the time, but the performed emotion was one of the two 73–88% of the time.
 - **Results pages:** all Phase 6–9 results, interactive.

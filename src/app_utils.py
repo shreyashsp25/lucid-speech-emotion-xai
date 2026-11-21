@@ -3,7 +3,7 @@ Helpers for the Phase 9 app (app/streamlit_app.py). No Streamlit code here, so
 everything can be tested from a notebook or a script.
 
   * readable names for the 88 eGeMAPS features
-  * signal views: waveform envelope, spectrogram, Mel-spectrogram, pitch contour
+  * signal views: waveform envelope and spectrogram
   * where a clip's feature values sit in the training distribution (percentiles)
   * controlled perturbations (gain, pitch shift, noise) for the robustness simulation
   * evidence split of the fusion model (eGeMAPS part vs WavLM part)
@@ -92,17 +92,11 @@ def signal_views(y: np.ndarray, sr: int = TARGET_SR) -> dict:
     hop, n_fft = 160, 512                                    # 10 ms hop, 32 ms window
     S = np.abs(librosa.stft(y, n_fft=n_fft, hop_length=hop))
     spec_db = librosa.amplitude_to_db(S, ref=np.max, top_db=80)
-    mel = librosa.feature.melspectrogram(S=S ** 2, sr=sr, n_mels=64, fmax=sr // 2)
-    mel_db = librosa.power_to_db(mel, ref=np.max, top_db=80)
-    f0, voiced, _ = librosa.pyin(y, fmin=60, fmax=500, sr=sr, frame_length=1024, hop_length=hop)
-    voiced = voiced & (f0 > 63)                    # hiss is often "voiced" pinned at fmin: drop it
     rms = librosa.feature.rms(y=y, frame_length=n_fft, hop_length=hop)[0]
     t = librosa.frames_to_time(np.arange(S.shape[1]), sr=sr, hop_length=hop)
     step = max(1, len(y) // 4000)                            # light waveform for plotting
     return {"t_wave": np.arange(0, len(y), step) / sr, "wave": y[::step],
             "t": t, "freqs": librosa.fft_frequencies(sr=sr, n_fft=n_fft), "spec_db": spec_db,
-            "mel_freqs": librosa.mel_frequencies(n_mels=64, fmax=sr // 2), "mel_db": mel_db,
-            "f0": np.where(voiced, f0, np.nan)[: len(t)],
             "rms_db": 20 * np.log10(rms[: len(t)] + 1e-6)}
 
 

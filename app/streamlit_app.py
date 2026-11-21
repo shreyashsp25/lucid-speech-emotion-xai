@@ -761,10 +761,9 @@ def page_analyse():
     # ---------------- signal ----------------
     with tabs[1]:
         v = views_for(y)
-        fig = make_subplots(rows=4, cols=1, shared_xaxes=True, vertical_spacing=0.05,
-                            row_heights=[0.2, 0.3, 0.3, 0.2],
-                            subplot_titles=("Waveform and energy", "Spectrogram (dB)",
-                                            "Mel-spectrogram (64 bands)", "Pitch contour (pYIN)"))
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+                            row_heights=[0.4, 0.6],
+                            subplot_titles=("Waveform and energy", "Spectrogram (dB)"))
         wav = v["wave"] / (np.abs(v["wave"]).max() + 1e-9)
         fig.add_trace(go.Scatter(x=v["t_wave"], y=wav, line=dict(color="#8A8F98", width=1), name="waveform"), 1, 1)
         rms = (v["rms_db"] - v["rms_db"].max()) / 80 + 1
@@ -772,24 +771,18 @@ def page_analyse():
                                  name="energy (relative)"), 1, 1)
         fig.add_trace(go.Heatmap(x=v["t"], y=v["freqs"], z=v["spec_db"], colorscale="Magma", showscale=False,
                                  name="spectrogram"), 2, 1)
-        fig.add_trace(go.Heatmap(x=v["t"], y=np.arange(64), z=v["mel_db"], colorscale="Viridis", showscale=False,
-                                 name="mel"), 3, 1)
-        fig.add_trace(go.Scatter(x=v["t"], y=v["f0"], mode="lines", line=dict(color="#2A78D6", width=3),
-                                 name="pitch (F0)", hovertemplate="%{x:.2f} s · %{y:.0f} Hz<extra></extra>"), 4, 1)
         fig.update_yaxes(title_text="Hz", row=2, col=1, range=[0, 8000])
-        fig.update_yaxes(title_text="mel band", row=3, col=1)
-        fig.update_yaxes(title_text="Hz", row=4, col=1)
         fig.update_yaxes(range=[-1.05, 1.05], row=1, col=1)
-        fig.update_xaxes(title_text="time (s)", row=4, col=1)
-        show(style(fig, 820, bottom=True))
-        f0 = v["f0"][~np.isnan(v["f0"])]
-        m1, m2, m3, m4 = st.columns(4)
+        fig.update_xaxes(title_text="time (s)", row=2, col=1)
+        show(style(fig, 560, bottom=True))
+        loud = v["rms_db"] - v["rms_db"].max()
+        m1, m2, m3 = st.columns(3)
         m1.metric("Speech length", f"{duration:.2f} s")
-        m2.metric("Median pitch", f"{np.median(f0):.0f} Hz" if len(f0) else "none found")
-        m3.metric("Pitch range (10th to 90th)", f"{np.percentile(f0, 90) - np.percentile(f0, 10):.0f} Hz" if len(f0) else "none found")
-        m4.metric("Voiced frames", f"{len(f0) / max(1, len(v['f0'])):.0%}")
-        st.caption("This is exactly the processed 16 kHz signal the models receive, after silence trimming. The "
-                   "pitch contour is drawn with pYIN; the model's own pitch features come from openSMILE.")
+        m2.metric("Samples at 16 kHz", f"{len(y):,}")
+        m3.metric("Frames within 20 dB of the peak", f"{(loud > -20).mean():.0%}")
+        st.caption("This is exactly the processed 16 kHz signal the models receive, after silence trimming. "
+                   "Top: the sound wave and its energy over time. Bottom: which frequencies are present at each "
+                   "moment (brighter = more energy).")
 
     footer()
 

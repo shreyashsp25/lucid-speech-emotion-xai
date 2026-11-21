@@ -25,7 +25,7 @@ Needs `models/final_models.joblib` (from `notebooks/07_final_model.ipynb`), the 
 |---|---|---|
 | **Analyse a voice** | Input: dataset clip (held-out speaker), file upload (WAV/FLAC/OGG/MP3) or microphone. Console with prediction, score ring, six score bars and waveform; three trust notes (recording conditions and calibration, typicality, second opinion); two tabs (below) | live, real models |
 | · Why | Exact linear SHAP of the eGeMAPS model for any chosen emotion, drawn as the ten voice features that mattered most, with a plain-language summary; optional **"Why X and not Y?"** (choose an emotion under "Compared with"): the difference of two emotions' SHAP values, which is exactly how much each feature moves the log-odds of X over Y | live |
-| · Signal | Waveform + energy, STFT spectrogram, 64-band Mel-spectrogram, pitch contour (pYIN); duration, median pitch, pitch range, voiced share | live |
+| · Signal | Waveform + energy, STFT spectrogram; duration, sample count, share of frames within 20 dB of the peak | live |
 | **How it decides** | Global SHAP top-15 per corpus and model; group shares (total and per feature); SHAP vs permutation agreement; RAVDESS-vs-CREMA-D importance scatter; per-emotion drivers; no-pitch shortcut check | Phase 7 results |
 | **Performance** | All 12 model × feature results with fold SD; leakage experiment; interactive confusion matrices (out-of-fold); ROC-AUC, calibration, overfitting, learning curve; final-recipe held-out check | Phases 6, 8 (E6), 9 |
 | **New-dataset test** | Cross-corpus UAR with bootstrap CIs and in-domain reference; H1 table; explanation stability (H2) box plots; stable-core selection (H3) forest plot; per-class drops, gender/age, label quality | Phase 8 |

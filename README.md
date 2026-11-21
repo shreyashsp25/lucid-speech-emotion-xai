@@ -93,7 +93,7 @@ streamlit run app/streamlit_app.py
 ```
 Needs the trained model from `notebooks/07_final_model.ipynb` and the local data (`data/raw`, `data/processed`).
 
-What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and shows the clip's waveform, spectrogram and pitch. The Analyse page has two tabs, **Why** and **Signal**; the earlier version with six more tools (emotion compass, what-if studio, two-dataset lens, timeline, voice profile, stress test) was removed in November 2026. When two emotions score within 15 points it names both ("happy, or sad 36%") instead of pretending to be sure.
+What it does: predicts the emotion with the real model, explains it with exact SHAP (including **"Why angry and not happy?"**, the exact difference between two emotions), and shows the clip's waveform, energy and spectrogram. The Analyse page has two tabs, **Why** and **Signal**; the earlier version with six more tools (emotion compass, what-if studio, two-dataset lens, timeline, voice profile, stress test) was removed in November 2026. When two emotions score within 15 points it names both ("happy, or sad 36%") instead of pretending to be sure.
 
 **Built for real voices, not just studio clips.** A laptop microphone makes normal speech sound *sad* to a model trained in recording studios, and excited shouting sounds *angry*. Four additions, each tested on speakers the models never heard ([`report/09_simulation.md`](report/09_simulation.md), sections 7–10; reproduce with `python -m src.voice_experiments calibration|corrections|robust|enrolment`):
 
