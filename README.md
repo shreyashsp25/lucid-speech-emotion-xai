@@ -38,11 +38,9 @@ We built a research-driven Speech Emotion Recognition system. It classifies emot
 | [`report/Lucid_Final_Review.pptx`](report/Lucid_Final_Review.pptx) | Final presentation in the department format (Title, Abstract, Introduction, Problem statement, Objectives, Literature survey, Methodology, Block diagram, Implementation, Conclusion, References), with speaker notes |
 | [`results/review/`](results/review/) | Train / validation / test scores for all 24 models, class separability, PCA and correlation analysis (`python -m src.review_analysis all`) |
 | [`results/consolidated_results.md`](results/consolidated_results.md) | All results in one place, with train / validation / test metrics |
-| [`report/Lucid_Final_Report.docx`](report/Lucid_Final_Report.docx) | Earlier long-form report (Markdown source [`report/10_final_report.md`](report/10_final_report.md)) |
 | [`report/10_viva_preparation.md`](report/10_viva_preparation.md) | 55 examiner-style questions with answers |
-| [`report/10_team_plan.md`](report/10_team_plan.md) | Ownership, shared-understanding sessions, submission checklist |
 
-PDF files are git-ignored except the final report.
+The Teams submission package (report, slides, code with models, data sample, consolidated results) is built locally in `submission/` (git-ignored). PDF files are git-ignored except the final report.
 
 ## Literature survey
 - [`literature/literature_matrix.md`](literature/literature_matrix.md): comparison of the first 10 papers read (Phase 1); the final IEEE report and presentation use the 15 papers kept in `papers/` (table in both)

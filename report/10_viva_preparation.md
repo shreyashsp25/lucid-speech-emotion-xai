@@ -2,7 +2,7 @@
 
 Each question has a **short answer** (what to say first, ~15 seconds) and a **deeper explanation** (if the examiner asks "why?" or "explain more"). Every number comes from our results; the source file is given where useful.
 
-Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya Shreyash Shanmukh · **PR** Praveen Raj). **Everyone must be able to answer every question**; see `10_team_plan.md`.
+Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya Shreyash Shanmukh · **PR** Praveen Raj). **Everyone must be able to answer every question.**
 
 ---
 
