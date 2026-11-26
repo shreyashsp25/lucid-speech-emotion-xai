@@ -92,7 +92,7 @@ def tab_pair():
     lines = [r"\begin{table}[!t]", r"\centering",
              r"\caption{Pairwise separability: speaker-independent ROC-AUC of a binary LogReg on fused features. "
              r"Upper triangle RAVDESS, lower triangle CREMA-D}",
-             r"\label{tab:pair}", r"\footnotesize", r"\setlength{\tabcolsep}{4pt}",
+             r"\label{tab:pair}", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}",
              r"\begin{tabular}{@{}lcccccc@{}}", r"\toprule", " & " + " & ".join(ab) + r" \\", r"\midrule"]
     R, C = A["ravdess"]["pair_auc"], A["cremad"]["pair_auc"]
     for i in range(6):
@@ -102,7 +102,7 @@ def tab_pair():
                 row.append("--")
             else:
                 v = R[i][j] if j > i else C[i][j]
-                row.append(f"{v:.2f}" if v >= 0.95 else r"\textbf{" + f"{v:.2f}" + "}")
+                row.append(f"{v:.3f}" if v >= 0.95 else r"\textbf{" + f"{v:.3f}" + "}")
         lines.append(" & ".join(row) + r" \\")
     lines += [r"\bottomrule", r"\multicolumn{7}{@{}l}{\scriptsize Bold: AUC below 0.95.}", r"\end{tabular}", r"\end{table}"]
     (TAB / "tab_pair.tex").write_text("\n".join(lines) + "\n")

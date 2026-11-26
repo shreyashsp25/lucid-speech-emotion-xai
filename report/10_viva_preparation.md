@@ -248,7 +248,7 @@ Owner initials show who leads the answer (**PS** Pranav Sajith · **PY** Piriya 
 |---|---|
 | Clips used | RAVDESS 1,056 (24 speakers) · CREMA-D 7,442 (91) |
 | Best within-corpus UAR | 82.2% RAVDESS · 74.1% CREMA-D (LogReg fusion) |
-| eGeMAPS within-corpus UAR | 55.4% · 51.4% (LogReg) |
+| eGeMAPS within-corpus UAR | 55.4% · 51.5% (LogReg, mean of 5 folds) |
 | Leakage inflation | up to +9.3 (RAVDESS) · +1.7 (CREMA-D) |
 | Best WavLM layers | 5–7 (final model: 7) |
 | Cross-corpus best | R → C 48.6% · C → R 68.3% (fusion, per-corpus norm) |
