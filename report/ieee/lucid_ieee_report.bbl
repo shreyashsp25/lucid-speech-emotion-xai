@@ -99,27 +99,4 @@ A.~Ibrahim, S.~Shehata, A.~Kulkarni, M.~Mohamed, and M.~Abdul-Mageed, ``What
   does it take to generalize {SER} model across datasets? {A} comprehensive
   benchmark,'' in \emph{Proc. Interspeech}, 2024.
 
-\bibitem{opensmile}
-F.~Eyben, M.~W{\"o}llmer, and B.~Schuller, ``{openSMILE}: The {M}unich
-  versatile and fast open-source audio feature extractor,'' in \emph{Proc. ACM
-  Multimedia}, 2010, pp. 1459--1462.
-
-\bibitem{sklearn}
-F.~Pedregosa \emph{et~al.}, ``Scikit-learn: Machine learning in {P}ython,''
-  \emph{J. Mach. Learn. Res.}, vol.~12, pp. 2825--2830, 2011.
-
-\bibitem{lightgbm}
-G.~Ke, Q.~Meng, T.~Finley, T.~Wang, W.~Chen, W.~Ma, Q.~Ye, and T.-Y. Liu,
-  ``{LightGBM}: A highly efficient gradient boosting decision tree,'' in
-  \emph{Proc. Adv. Neural Inf. Process. Syst. (NeurIPS)}, 2017, pp. 3146--3154.
-
-\bibitem{guo}
-C.~Guo, G.~Pleiss, Y.~Sun, and K.~Q. Weinberger, ``On calibration of modern
-  neural networks,'' in \emph{Proc. Int. Conf. Mach. Learn. (ICML)}, 2017, pp.
-  1321--1330.
-
-\bibitem{breiman}
-L.~Breiman, ``Random forests,'' \emph{Machine Learning}, vol.~45, pp. 5--32,
-  2001.
-
 \end{thebibliography}

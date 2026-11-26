@@ -196,7 +196,7 @@ Fig.~\ref{fig:block} gives the overall design. After cleaning, each clip goes th
 \end{figure*}
 
 \subsection{Feature extraction}
-\textbf{eGeMAPS.} openSMILE~\cite{opensmile} measures 25 low-level descriptors every 10\,ms, including pitch, jitter, shimmer, loudness, harmonics-to-noise ratio, formants, spectral slopes and balance, MFCC 1--4 and spectral flux. These are then summarised over the whole clip with means, coefficients of variation, percentiles and slopes, together with a few temporal rates. The result is 88 named parameters in four groups: energy (15), frequency (24), spectral (43) and temporal (6)~\cite{egemaps,dixit}. As an example, \clipA{} has a mean loudness of 1.21, while the training mean is 0.417 with a standard deviation of 0.387. Its standardised value is $z = (1.21 - 0.417)/0.387 = +2.05$, which makes it louder than 94\% of all 8{,}498 clips.
+\textbf{eGeMAPS.} The openSMILE toolkit measures 25 low-level descriptors every 10\,ms, including pitch, jitter, shimmer, loudness, harmonics-to-noise ratio, formants, spectral slopes and balance, MFCC 1--4 and spectral flux. These are then summarised over the whole clip with means, coefficients of variation, percentiles and slopes, together with a few temporal rates. The result is 88 named parameters in four groups: energy (15), frequency (24), spectral (43) and temporal (6)~\cite{egemaps,dixit}. As an example, \clipA{} has a mean loudness of 1.21, while the training mean is 0.417 with a standard deviation of 0.387. Its standardised value is $z = (1.21 - 0.417)/0.387 = +2.05$, which makes it louder than 94\% of all 8{,}498 clips.
 
 \textbf{WavLM base-plus.} WavLM first passes the waveform through seven convolutional layers whose strides multiply to 320 samples, giving one 768-dimensional frame every 20\,ms. Twelve Transformer layers then let every frame attend to every other frame~\cite{wavlm}. We keep the encoder frozen and average each of its 13 layer outputs over time. For \clipA{}, 30{,}208 samples become 94 frames and finally 13$\times$768 numbers. Which layer to use is decided by inner cross-validation. The middle layers carry the most emotion information (Fig.~\ref{fig:layers}), which agrees with~\cite{pepino}, and the final model uses layer~7.
 
@@ -227,20 +227,20 @@ We then tested whether dimensionality reduction improves classification. PCA was
 \end{figure*}
 
 \subsection{Classifiers and training protocol}
-We compare four classifiers from scikit-learn~\cite{sklearn} and LightGBM~\cite{lightgbm}; k-nearest neighbours was left out under a project rule. They are L2 logistic regression ($C\in\{0.01,0.1,1\}$), an RBF-kernel SVM ($C\in\{1,10\}$), LightGBM with 250 trees (minimum leaf size $\in\{10,30\}$), and a multilayer perceptron with 256 hidden units and early stopping ($\alpha\in\{10^{-3},10^{-1}\}$). Each one uses balanced class weights where the library allows it and is trained on eGeMAPS, WavLM and the combined features, which gives 24 models per corpus.
+We compare four classifiers implemented in scikit-learn and LightGBM; k-nearest neighbours was left out under a project rule. They are L2 logistic regression ($C\in\{0.01,0.1,1\}$), an RBF-kernel SVM ($C\in\{1,10\}$), LightGBM with 250 trees (minimum leaf size $\in\{10,30\}$), and a multilayer perceptron with 256 hidden units and early stopping ($\alpha\in\{10^{-3},10^{-1}\}$). Each one uses balanced class weights where the library allows it and is trained on eGeMAPS, WavLM and the combined features, which gives 24 models per corpus.
 
 All evaluation is nested and speaker-independent. In each of the five outer folds, one fold is held out as the test set. On the other four folds, a 3-fold speaker-grouped inner cross-validation picks the hyperparameters and the WavLM layer; the inner score of the chosen setting is what we call the \emph{validation} score. The model is then refitted on those four folds (its score there is the \emph{training} score) and evaluated once on the held-out fold (the \emph{test} score). Our main metric is
 \begin{equation}
 \mathrm{UAR} = \frac{1}{6}\sum_{c=1}^{6}\frac{\mathrm{TP}_c}{\mathrm{TP}_c+\mathrm{FN}_c},
 \end{equation}
-the mean recall over the six emotions, so the smaller neutral class counts as much as any other. We also report macro-F1, accuracy, one-vs-rest ROC-AUC and the expected calibration error (ECE)~\cite{guo}.
+the mean recall over the six emotions, so the smaller neutral class counts as much as any other. We also report macro-F1, accuracy, one-vs-rest ROC-AUC and the expected calibration error (ECE).
 
 \subsection{Explainability}
 For a linear model the SHAP values~\cite{shap} can be written down exactly. With standardised inputs $z$, weights $w_c$ for emotion $c$ and training mean $\bar z$, the contribution of feature $j$ is
 \begin{equation}
 \phi_{c,j} = w_{c,j}\,(z_j - \bar z_j), \qquad s_c = \beta_c + \sum_j \phi_{c,j},
 \end{equation}
-and the contributions add up exactly to the class score $s_c$ on the log-odds scale. Taking the difference $\phi_{a,j}-\phi_{b,j}$ answers the question ``why $a$ and not $b$?''. All explanations are computed out-of-fold, so each clip is explained by a model that never heard its speaker, and we compare them with permutation importance~\cite{breiman}. To measure stability we take the Spearman correlation between the global importance rankings of two models trained on two resamples, two disjoint speaker groups or two corpora, and compare it with the correlation between random rankings.
+and the contributions add up exactly to the class score $s_c$ on the log-odds scale. Taking the difference $\phi_{a,j}-\phi_{b,j}$ answers the question ``why $a$ and not $b$?''. All explanations are computed out-of-fold, so each clip is explained by a model that never heard its speaker, and we compare them with permutation importance. To measure stability we take the Spearman correlation between the global importance rankings of two models trained on two resamples, two disjoint speaker groups or two corpora, and compare it with the correlation between random rankings.
 
 %=====================================================================
 \section{Implementation, Results and Discussion}

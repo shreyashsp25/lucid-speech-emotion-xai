@@ -1,6 +1,6 @@
 # Papers — numbered as in the report's References
 
-These are the 15 papers cited in the final report (`report/ieee/lucid_ieee_report.pdf`). Each file name starts with its reference number in the report. References [16]–[20] are software and method citations (openSMILE, scikit-learn, LightGBM, calibration, permutation importance) and have no PDF here. The PDFs are not uploaded to GitHub.
+These are the 15 papers in the References section of the final report (`report/ieee/lucid_ieee_report.pdf`). Each file name starts with its reference number in the report. The PDFs are not uploaded to GitHub.
 
 | # | File | Paper |
 |---|---|---|
