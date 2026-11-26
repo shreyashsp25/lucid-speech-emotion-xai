@@ -1,0 +1,20 @@
+\begin{table}[!t]
+\centering
+\caption{Precision / recall / F1 of the best model (LogReg, fusion), out-of-fold on unseen speakers}
+\label{tab:prf}
+\footnotesize
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Emotion} & \textbf{RAVDESS} & \textbf{CREMA-D} \\
+\midrule
+neutral & 0.76 / 0.87 / 0.81 & 0.77 / 0.86 / 0.81 \\
+happy & 0.84 / 0.76 / 0.80 & 0.78 / 0.76 / 0.77 \\
+sad & 0.68 / 0.75 / 0.71 & 0.65 / 0.67 / 0.66 \\
+angry & 0.89 / 0.90 / 0.89 & 0.84 / 0.83 / 0.83 \\
+fearful & 0.83 / 0.79 / 0.81 & 0.69 / 0.64 / 0.67 \\
+disgust & 0.90 / 0.88 / 0.89 & 0.71 / 0.68 / 0.70 \\
+\midrule
+macro & 0.82 / 0.82 / 0.82 & 0.74 / 0.74 / 0.74 \\
+\bottomrule
+\end{tabular}
+\end{table}

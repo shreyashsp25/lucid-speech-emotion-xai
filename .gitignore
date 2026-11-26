@@ -27,3 +27,9 @@ selfcheck_report.txt
 
 # old planning notes (superseded by report/10_final_report.md)
 PROJECT_STATE*.md
+
+# Teams submission package (built locally, contains models and sample audio)
+submission/
+# the final report PDF is the one PDF we keep in git
+!report/ieee/lucid_ieee_report.pdf
+!report/ieee/figures/*.pdf
